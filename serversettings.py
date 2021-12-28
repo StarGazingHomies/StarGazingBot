@@ -70,7 +70,8 @@ async def SettingTypeCheck(guild, setting, value):
                 return True
     return False
 
-class SettingsManager(object):
+
+class SettingsManager():
     created_instance = None
     """This class manages the settings files for StarGazingBot."""
     def __init__(self, *args, **kwargs):
@@ -79,16 +80,17 @@ class SettingsManager(object):
             self.serverpath = os.path.join(self.path, "servers")
             self.helppath = os.path.join(self.path, "settingsdoc")
             #Overall settings - this is important for the bot to start running.
-            self.cfg = yaml.safe_load(open(os.path.join(os.getcwd(), "settings", "config.yaml"),'r'))
+            self.cfg = yaml.safe_load(open(os.path.join(os.getcwd(), "settings", "config.env"), 'r'))
             logger.info("Overall config acquired.")
         except:
-            raise FileNotFoundError("Overall settings, such as the *BOT TOKEN* and *API KEY*, did not properly load. Please check if all files are present, then try again.")
+            raise FileNotFoundError("Overall settings, such as the BOT TOKEN and API KEY, did not properly load. Please check if all files are present, then try again.")
         self.server_specific = {}
         self.load_servers()
         self.types = SETTING_TYPES
         
     def load_servers(self, *args, **kwargs):
-        """This function loads the setting files present in the \\settings directory. It is called automatically upon object init."""
+        """This function loads the setting files present in the \\settings directory.
+It is called automatically upon object init."""
         self.server_specific = {}
         with os.scandir(self.serverpath) as settingsdir:
             for file in settingsdir:

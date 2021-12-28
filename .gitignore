@@ -1,0 +1,5 @@
+# Mac system files ew
+.DS_store
+
+#API keys and bot tokens
+.env
