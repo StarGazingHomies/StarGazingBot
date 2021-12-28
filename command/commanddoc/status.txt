@@ -1,0 +1,10 @@
+Sends information about features that the developer is working on.
+
+**Usage:**
+`{prefix}status`
+
+**Example:**
+`{prefix}status`
+
+**Aliases:**
+None

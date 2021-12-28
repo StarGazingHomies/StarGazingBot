@@ -1,0 +1,13 @@
+apply: false
+applycategory: null
+conditional: []
+disabled: {}
+enabled: true
+id: null
+logchannel: null
+namespaces: []
+prefix: star!
+skyblock_guild: null
+staffrole: null
+verifiedrole: null
+verify: false

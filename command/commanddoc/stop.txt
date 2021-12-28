@@ -1,0 +1,10 @@
+Stops the bot from running. (Bot owner only)
+
+**Usage:**
+`{prefix}stop`
+
+**Example:**
+`{prefix}stop`
+
+**Aliases:**
+None

@@ -1,0 +1,10 @@
+Gives the latency of the bot.
+
+**Usage:**
+`{prefix}ping`
+
+**Example:**
+`{prefix}ping`
+
+**Aliases:**
+`{prefix}latency`

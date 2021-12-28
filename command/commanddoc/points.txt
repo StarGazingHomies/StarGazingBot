@@ -1,0 +1,13 @@
+Queries the amount of points a user has.
+Use {prefix}points help to learn more!
+Cooldown: 1 hour
+
+**Usage:**
+`{prefix}points`
+`{prefix}points <top|help>`
+
+**Example:**
+`{prefix}points`
+
+**Aliases:**
+None

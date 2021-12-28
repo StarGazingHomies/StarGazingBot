@@ -1,0 +1,1 @@
+Whether the `{prefix}apply` command is enabled.

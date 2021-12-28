@@ -1,0 +1,10 @@
+Returns the weight of the given user, using the Senither leaderboard formula.
+
+**Usage:**
+`{prefix}weight [IGN]`
+
+**Example:**
+`{prefix}weight StarGazingHomies`
+
+**Aliases:**
+`{prefix}w`, `{prefix}we`, `{prefix}getweight`

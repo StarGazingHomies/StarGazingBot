@@ -1,0 +1,19 @@
+apply: bool
+applycategory: &id001 !!python/tuple
+- channel
+- none
+conditional: conditional
+disabled: channel:list-command
+enabled: bool
+id: int
+logchannel: *id001
+namespaces: list-namespaces
+prefix: str
+skyblock_guild: !!python/tuple
+- str
+- none
+staffrole: !!python/tuple
+- role
+- none
+verifiedrole: role
+verify: bool

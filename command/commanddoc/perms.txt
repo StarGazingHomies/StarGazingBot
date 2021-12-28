@@ -1,0 +1,10 @@
+Checks your permissions in the current server.
+
+**Usage:**
+`{prefix}perms`
+
+**Example:**
+`{prefix}perms`
+
+**Aliases:**
+None

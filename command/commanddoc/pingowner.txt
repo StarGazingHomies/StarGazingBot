@@ -1,0 +1,12 @@
+Pings the bot owner.
+(Not available to public, but have fun with it when it goes live!)
+Cooldown: 15 minutes
+
+**Usage:**
+`{prefix}pingowner`
+
+**Example:**
+`{prefix}pingowner`
+
+**Aliases:**
+None

@@ -1,0 +1,11 @@
+Returns the Skyblock weight of every member of a Hypixel Guild.
+(Usually, this command takes 2 minutes, due to the API limit.)
+
+**Usage:**
+`{prefix}guildleaderboard <Guild Name>`
+
+**Example:**
+`{prefix}guildleaderboard Atlantica`
+
+**Aliases:**
+`{prefix}glb`

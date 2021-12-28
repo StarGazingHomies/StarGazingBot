@@ -1,0 +1,231 @@
+general:
+  about:
+    commonname: about
+    cooldown: 0
+    exec: self.CMD_about
+    permission: 1
+  addrole:
+    commonname: addrole
+    cooldown: 0
+    exec: self.CMD_addrole
+    permission: 3
+  apply:
+    commonname: apply
+    cooldown: 7200
+    exec: self.CMD_apply
+    permission: 1
+  clean:
+    commonname: clean
+    cooldown: 0
+    exec: self.CMD_clean
+    permission: 2
+  config:
+    commonname: config
+    cooldown: 0
+    exec: self.CMD_server_settings
+    permission: 3
+  echo:
+    commonname: echo
+    cooldown: 0
+    exec: self.CMD_echo
+    permission: 3
+  eval:
+    commonname: eval
+    cooldown: 0
+    exec: self.CMD_eval
+    permission: 5
+  exec:
+    commonname: exec
+    cooldown: 0
+    exec: self.CMD_exec
+    permission: 5
+  h:
+    alias: help
+  help:
+    commonname: help
+    cooldown: 0
+    exec: self.CMD_help
+    permission: 1
+  invite:
+    commonname: invite
+    cooldown: 0
+    exec: self.CMD_invite
+    permission: 1
+  latency:
+    alias: ping
+  move:
+    commonname: move
+    cooldown: 0
+    exec: self.CMD_move
+    permission: 2
+  nevermind:
+    commonname: nevermind
+    cooldown: 0
+    exec: self.nevermind
+    permission: 5
+  nick:
+    commonname: nick
+    cooldown: 0
+    exec: self.CMD_nick
+    permission: 2
+  perms:
+    commonname: perms
+    cooldown: 1200
+    exec: self.CMD_perms
+    permission: 1
+  ping:
+    commonname: latency
+    cooldown: 0
+    exec: self.CMD_latency
+    permission: 1
+  pingowner:
+    commonname: pingowner
+    cooldown: 1200
+    exec: self.CMD_pingowner
+    permission: 1
+  points:
+    commonname: points
+    cooldown: 7200
+    exec: self.CMD_points
+    permission: 1
+  prefix:
+    commonname: prefix
+    cooldown: 0
+    exec: self.CMD_prefix
+    permission: 3
+  report:
+    commonname: report
+    cooldown: 0
+    exec: self.CMD_report
+    permission: 1
+  roll:
+    commonname: roll
+    cooldown: 0
+    exec: self.CMD_roll
+    permission: 1
+  say:
+    commonname: say
+    cooldown: 0
+    exec: self.CMD_say
+    permission: 2
+  settings:
+    commonname: settings
+    cooldown: 0
+    exec: self.CMD_user_settings
+    permission: 1
+  status:
+    commonname: status
+    cooldown: 0
+    exec: self.CMD_status
+    permission: 1
+  stop:
+    commonname: stop
+    cooldown: 0
+    exec: self.stop
+    permission: 5
+  temp:
+    commonname: temp
+    cooldown: 0
+    exec: self.temp
+    permission: 5
+  verify:
+    commonname: verify
+    cooldown: 0
+    exec: self.CMD_verify
+    permission: 1
+hypixel:
+  event:
+    commonname: event
+    cooldown: 0
+    exec: self.CMD_Skyblock_event
+    permission: 2
+  getstats:
+    alias: stats
+  getweight:
+    alias: weight
+  glb:
+    commonname: glb
+    cooldown: 1200
+    exec: self.CMD_guildleaderboard
+    permission: 2
+  guildleaderboard:
+    alias: glb
+  gw:
+    alias: weight
+  loopglb:
+    commonname: loopglb
+    cooldown: 0
+    exec: self.CMD_Skyblock_glb_loop_command
+    permission: 2
+  r:
+    alias: reqs
+  req:
+    alias: reqs
+  reqs:
+    commonname: reqs
+    cooldown: 0
+    exec: self.CMD_Skyblock_Reqs
+    permission: 1
+  requirements:
+    alias: reqs
+  skill:
+    commonname: skill
+    cooldown: 0
+    exec: self.CMD_Skyblock_skill
+    permission: 1
+  skills:
+    alias: skill
+  stats:
+    commonname: stats
+    cooldown: 0
+    exec: self.CMD_Skyblock_getstats
+    permission: 1
+  w:
+    alias: weight
+  we:
+    alias: weight
+  weight:
+    commonname: weight
+    cooldown: 0
+    exec: self.CMD_Skyblock_getweight
+    permission: 1
+manebooru:
+  f:
+    alias: featured
+  featured:
+    commonname: featured
+    cooldown: 0
+    exec: self.CMD_featured
+    permission: 1
+  pick:
+    commonname: pick
+    cooldown: 0
+    exec: self.CMD_random
+    permission: 1
+  search:
+    commonname: search
+    cooldown: 30
+    exec: self.CMD_search
+    permission: 1
+minecraft:
+  start:
+    commonname: start
+    cooldown: 0
+    exec: self.CMD_start
+    permission: 5
+  stop:
+    commonname: stop
+    cooldown: 0
+    exec: self.CMD_stop
+    permission: 5
+mojang:
+  getusername:
+    commonname: getusername
+    cooldown: 0
+    exec: self.CMD_username
+    permission: 1
+  getuuid:
+    commonname: getuuid
+    cooldown: 0
+    exec: self.CMD_uuid
+    permission: 1

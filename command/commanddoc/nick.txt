@@ -1,0 +1,10 @@
+Changes the nickname of yourself, or a given user.
+
+**Usage:**
+`{prefix}nick <name> [member]`
+
+**Example:**
+`{prefix}nick Bot Dev | StarGazingHomies <@!523717630972919809>`
+
+**Aliases:**
+None

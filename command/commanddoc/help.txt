@@ -1,0 +1,10 @@
+Sends information about a given command, or lists commands if none is given.
+
+**Usage:**
+`{prefix}help [command]`
+
+**Example:**
+`{prefix}help stats`
+
+**Aliases:**
+`{prefix}h`

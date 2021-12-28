@@ -1,0 +1,14 @@
+Configures SERVER settings. Only usable by server owners and bot owner.
+**Prefix is an alias of `{prefix}config`.**
+
+**Usage:**
+`{prefix}config [page]`
+`{prefix}config <setting>`
+`{prefix}config <setting> <value>`
+
+**Example:**
+`{prefix}config 2`
+`{prefix}config apply False`
+
+**Aliases:**
+`{prefix}config prefix <value>` = `{prefix}prefix <value>` or `{prefix}pfx <value>`

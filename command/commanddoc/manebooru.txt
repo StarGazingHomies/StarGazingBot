@@ -1,0 +1,27 @@
+Commands group that interface with the Manebooru imageboard.
+Use `{prefix}manebooru help <subcommand>` to get help with a specific subcommand.
+
+**Warning** - although this is a My Little Pony imageboard,
+ it may contain mature content **if safe filters are off.**
+Make sure to check out Manebooru's Discord server! https://discord.gg/manechat
+
+Currently, this command is in development.
+
+Available subcommands:
+- featured
+- pick (random search)
+- search (systematic)
+
+Working on:
+- image id get
+
+**Usage:**
+`{prefix}manebooru <subcommand> [args]`
+
+**Example:**
+`{prefix}manebooru featured`
+`{prefix}manebooru pick safe, cute, -eqg, -solo, -screencap`
+`{prefix}manebooru search sd=ascending, safe, cute, -eqg, -solo, -screencap`
+
+**Aliases:**
+`{prefix}mane`

@@ -1,0 +1,13 @@
+Configures USER settings.
+
+**Usage:**
+`{prefix}settings [page]`
+`{prefix}settings <setting>`
+`{prefix}settings <setting> <value>`
+
+**Example:**
+`{prefix}settings 2`
+`{prefix}settings expandweight False`
+
+**Aliases:**
+`{prefix}setting`

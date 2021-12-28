@@ -1,0 +1,10 @@
+Returns the statistics of the given user.
+
+**Usage:**
+`{prefix}stats [IGN]`
+
+**Example:**
+`{prefix}stats StarGazingHomies`
+
+**Aliases:**
+`{prefix}getstats`

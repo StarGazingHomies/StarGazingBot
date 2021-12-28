@@ -1,0 +1,10 @@
+Send a message in chat.
+
+**Usage:**
+`{prefix}echo <message>`
+
+**Example:**
+`{prefix}echo Hello World!`
+
+**Aliases:**
+None

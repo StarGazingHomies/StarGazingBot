@@ -1,0 +1,15 @@
+Mass deletes messages in a channel.
+\*Note: 
+When filtering by user, it applies the filter retroactively.
+Therefore, it searches through the last 100 messages in the channel
+for ones sent by the user, and may delete less.
+
+**Usage:**
+`{prefix}clean <amount> [user]`
+
+**Example:**
+`{prefix}clean 100`
+`{prefix}clean 100 <@!797930119476936715>`\*
+
+**Aliases:**
+None

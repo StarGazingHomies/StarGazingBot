@@ -1,0 +1,12 @@
+Reports an issue to the bot owner, StarGazingHomies#0001.
+Certain things may be logged to assist in fixing the issue.
+The logs are not guaranteed to be anonymous.
+
+**Usage:**
+`{prefix}report <issue>`
+
+**Example:**
+`{prefix}report {prefix}weight doesn't return anything at all!`
+
+**Aliases:**
+None

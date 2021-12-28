@@ -1,0 +1,11 @@
+Opens a ticket with staff members to apply.
+Currently, this command is Atlantica only.
+
+**Usage:**
+`{prefix}apply`
+
+**Example:**
+`{prefix}apply`
+
+**Aliases:**
+None

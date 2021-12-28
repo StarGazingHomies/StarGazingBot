@@ -1,0 +1,11 @@
+If enabled on a server, verifies users.
+The user must link their Minecraft account with their Discord on Hypixel.
+
+**Usage:**
+`{prefix}verify <IGN>`
+
+**Example:**
+`{prefix}verify <IGN>`
+
+**Aliases:**
+None

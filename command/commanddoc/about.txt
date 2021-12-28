@@ -1,0 +1,10 @@
+Sends information about the bot in general.
+
+**Usage:**
+`{prefix}about`
+
+**Example:**
+`{prefix}about`
+
+**Aliases:**
+None

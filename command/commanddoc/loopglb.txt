@@ -1,0 +1,12 @@
+Posts the result of `at!glb` at a designated interval.
+
+**Usage:**
+`{prefix}loopglb start <Guild Name> [interval]`
+`{prefix}loopglb stop`
+
+**Example:**
+`{prefix}loopglb start Atlantica 15m`
+`{prefix}loopglb stop`
+
+**Aliases:**
+None

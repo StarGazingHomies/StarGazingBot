@@ -1,0 +1,10 @@
+Gets the featured image on the Manebooru imageboard.
+
+**Usage:**
+`{prefix}manebooru featured`
+
+**Example:**
+`{prefix}manebooru featured`
+
+**Aliases:**
+`{prefix}manebooru f`

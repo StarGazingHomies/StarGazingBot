@@ -1,0 +1,10 @@
+Send a message in chat, in a randomly coloured embed. Use {prefix}echo to send a message without an embed!
+
+**Usage:**
+`{prefix}say <message>`
+
+**Example:**
+`{prefix}say Hello World!`
+
+**Aliases:**
+None
