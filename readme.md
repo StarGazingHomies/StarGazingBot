@@ -5,7 +5,7 @@ Please do not expect regular updates.
 
 Modules will be added and updated based on my current interests.
 
-#### Command Modules
+#### Current Modules
  - General commands (settings, report, etc.)
  - Hypixel Skyblock
  - Manebooru
