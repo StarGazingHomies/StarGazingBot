@@ -1,27 +1,28 @@
-
 """
 Structures, such as Skills, to assist the Hypixel API.
 """
 
 from modules.hypixel.calc import Skills, Slayers, Dungeons
 
+
 class UnweightedSkill(object):
-    __slots__ = ('_level','_exp')
+    __slots__ = ('_level', '_exp')
+
     def __init__(self, value=0, vtype='exp'):
         self._level = 0
         self._exp = 0
-        #assert vtype in ('exp','lvl','level')
-        if vtype=='exp':
+        # assert vtype in ('exp','lvl','level')
+        if vtype == 'exp':
             self._exp = value
             self._level = Skills.exp_to_level(value)
-        elif vtype=='lvl' or vtype=='level':
+        elif vtype == 'lvl' or vtype == 'level':
             self._level = value
             self._exp = Skills.level_to_exp(value)
 
     def __repr__(self):
         return f"Level: {self.level}; Exp: {self.exp}"
 
-    #When changing the exp and level properties, the other one automagically changes.
+    # When changing the exp and level properties, the other one automagically changes.
     @property
     def level(self):
         return self._level
@@ -41,23 +42,17 @@ class UnweightedSkill(object):
         self._level = Skills.exp_to_level(val)
 
 
-#Represents a weighted skill.
-#Weight udpates whenever data is changed.
+# Represents a weighted skill.
+# Weight updates whenever data is changed.
 class WeightedSkill(UnweightedSkill):
-    __slots__ = ('_type','_totw','_basew','_ovfw')
+    __slots__ = ('_type', '_totw', '_basew', '_ovfw')
 
     def __init__(self, stype, value=0, vtype='exp'):
         if not Skills.validate(stype):
             raise ValueError("Please indicate a valid skill name.")
-        self._level = 0
-        self._exp = 0
-        #assert vtype in ('exp','lvl','level')
-        if vtype=='exp':
-            self._exp = value
-            self._level = Skills.exp_to_level(value,stype)
-        elif vtype=='lvl' or vtype=='level':
-            self._level = value
-            self._exp = Skills.level_to_exp(value)
+        self._basew, self._ovfw = Skills.weight(self.type, self._exp, self._level)
+        self._totw = self._basew + self._ovfw
+        super().__init__(value, vtype)
         self._type = stype.lower()
         self.update()
 
@@ -65,8 +60,7 @@ class WeightedSkill(UnweightedSkill):
         return f"Level: {self.level}; Exp: {self.exp}"
 
     def update(self):
-        self._basew, self._ovfw = Skills.weight(self.type, self._exp, self._level)
-        self._totw = self._basew + self._ovfw
+        pass
 
     @property
     def level(self):
@@ -99,17 +93,18 @@ class WeightedSkill(UnweightedSkill):
         self._type = val.lower()
         self.update()
 
-    #Weight(s) are READABLE properties
+    # Weight(s) are READABLE properties
     @property
     def weight(self):
         return self._totw
 
     @property
     def weights(self):
-        return (self._basew, self._ovfw)
+        return self._basew, self._ovfw
 
-class WeightedSlayer():
-    __slots__ = ('_type','_ovfw','_basew','_totw','_exp')
+
+class WeightedSlayer:
+    __slots__ = ('_type', '_ovfw', '_basew', '_totw', '_exp')
 
     def __init__(self, stype, exp=0):
         if not Slayers.validate(stype):
@@ -141,7 +136,7 @@ class WeightedSlayer():
 
     @type.setter
     def type(self, val):
-        if not Slayers.validate(stype):
+        if not Slayers.validate(val):
             raise ValueError("Please indicate a valid slayer name.")
         self._type = val
         self.update()
@@ -155,24 +150,24 @@ class WeightedSlayer():
         return self._basew, self._ovfw
 
 
-
 class UnweightedDungeon(object):
-    __slots__ = ('_level','_exp')
+    __slots__ = ('_level', '_exp')
+
     def __init__(self, value=0, vtype='exp'):
         self._level = 0
         self._exp = 0
-        #assert vtype in ('exp','lvl','level')
-        if vtype=='exp':
+        # assert vtype in ('exp','lvl','level')
+        if vtype == 'exp':
             self._exp = value
             self._level = Dungeons.exp_to_level(value)
-        elif vtype=='lvl' or vtype=='level':
+        elif vtype == 'lvl' or vtype == 'level':
             self._level = value
             self._exp = Dungeons.level_to_exp(value)
 
     def __repr__(self):
         return f"Level: {self.level}; Exp: {self.exp}"
 
-    #When changing the exp and level properties, the other one automagically changes.
+    # When changing the exp and level properties, the other one automagically changes.
     @property
     def level(self):
         return self._level
@@ -192,12 +187,14 @@ class UnweightedDungeon(object):
         self._level = Dungeons.exp_to_level(val)
 
 
-#Represents a weighted dungeon skill.
-#Weight udpates whenever data is changed.
+# Represents a weighted dungeon skill.
+# Weight udpates whenever data is changed.
 class WeightedDungeon(UnweightedDungeon):
-    __slots__ = ('_type','_totw','_basew','_ovfw')
+    __slots__ = ('_type', '_totw', '_basew', '_ovfw')
 
     def __init__(self, stype, *args, **kwargs):
+        self._basew, self._ovfw = Dungeons.weight(self.type, self._exp, self._level)
+        self._totw = self._basew + self._ovfw
         if not Dungeons.validate(stype):
             raise ValueError("Please indicate a valid skill name.")
         super().__init__(*args, **kwargs)
@@ -208,8 +205,7 @@ class WeightedDungeon(UnweightedDungeon):
         return f"Level: {self.level}; Exp: {self.exp}"
 
     def update(self):
-        self._basew, self._ovfw = Dungeons.weight(self.type, self._exp, self._level)
-        self._totw = self._basew + self._ovfw
+        pass
 
     @property
     def level(self):
@@ -242,11 +238,11 @@ class WeightedDungeon(UnweightedDungeon):
         self._type = val.lower()
         self.update()
 
-    #Weight(s) are READABLE properties
+    # Weight(s) are READABLE properties
     @property
     def weight(self):
         return self._totw
 
     @property
     def weights(self):
-        return (self._basew, self._ovfw)
+        return self._basew, self._ovfw

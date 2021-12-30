@@ -5,7 +5,7 @@ import requests
 import time
 import yaml
 
-import modules.hypixel.hypixelapi
+import modules.hypixel.hypixelapi as hypixelapi
 from modules.hypixel.player import Player
 
 API_KEY = 'ca1fbb03-ad6e-4321-880c-217c2cf455b5'

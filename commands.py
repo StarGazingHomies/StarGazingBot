@@ -24,7 +24,7 @@ from modules.hypixel.player import Player
 from modules.hypixel.guild import getguild
 import modules.minecraft.mojangapi as mojangapi
 from structures import PagedResponse, ExpandableResponse, VerifyResponse
-from command.manebooru import ManebooruInterface
+import command
 
 SKYBLOCK_DICT = yaml.load(open("skyblock_constants.yaml", "r"), Loader=yaml.FullLoader)
 
@@ -95,7 +95,12 @@ class Listener(object):
         self.usermanager = UserManager()                                                    # User manager
         self.settingsmanager = SettingsManager()                                            # Settings manager
         self.eventmanager = EventManager()
-        self.maneinterface = ManebooruInterface()                                           # Manebooru interface
+
+        # Listeners
+        self.listeners = {}
+        for module in command.__all__:
+            self.listeners[module] = eval(f"command.{module}.Listener()")
+        self.maneinterface = command.manebooru.Listener()                                   # Manebooru interface
 #        self.mcinterface = McMessengerInterface()                                          # Minecraft interface
         self.helppath = os.path.join(os.getcwd(), 'commanddoc')                             # Documentation path
         self.scroll = []        # Format: (message, userid, scrollable object, timestamp)
@@ -137,7 +142,18 @@ class Listener(object):
             args = message.content.split(' ')
             command = args[0][len(pfx):]
 
-        # First, search the general commands
+        # First, check if the command specifies a namespace.
+        # If it does, the namespace is determined.
+        # This would not happen with the help message, the only time input is a string.
+        if command in self.listeners:
+            namespace = command
+            command = args[1]
+            if command in COMMANDMAP[namespace]:
+                return {'namespace':namespace, **COMMANDMAP[namespace][command]}
+            else:
+                return None
+
+        # Then, search the general commands
         generalmap = COMMANDMAP['general']
         ans = self.get_command_from_submap(command, generalmap)
         if ans:
@@ -274,11 +290,18 @@ class Listener(object):
 
         logger.debug(f"Received message {message.content} in {message.channel} in {message.guild}.")
 
+        # Pings give prefix
+        if message.content.startswith('<@!797930119476936715>'):
+            await message.channel.send(f"My prefix is `{'star!' if pfx is None else pfx}`")
+            return
+
         # Commands prefix
         if message.guild is None:
             # DM commands
             pfx = 'star!'
+
         else:
+            # Get the prefix
             pfx = self.settingsmanager.server_get(message.guild.id, 'prefix')
             enabled = self.settingsmanager.server_get(message.guild.id, 'enabled')
             conditionals = self.settingsmanager.server_get(message.guild.id, 'conditional')
@@ -372,13 +395,26 @@ class Listener(object):
             
             # Find command
             try:
-                await eval(f"{command['exec']}(message)")
+                # Result should return dict containing status
+                # 0 = good exec
+                # 1 = good exec, do something now
+                if command['namespace'] is None:
+                    result = await eval(f"self.{command['exec']}(message)")
+                else:
+                    result = await eval(f"self.listeners['{command['namespace']}'].{command['exec']}(message)")
+
+                if not result:
+                    return
+                if result['status'] == 1:
+                    if 'add' in result:
+                        if result['add'] == 'scroll':
+                            for r in ('⏪', '◀', '▶', '⏩', chr(128256)):
+                                await result['msg'].add_reaction(r)
+                            await result['msg'].edit(**result['obj'].msgget())
+                            self.scroll.append([result['msg'], message.author.id, result['obj'], time.time()])
+
             except Exception as e:
                 raise e
-            return
-
-        if message.content.startswith('<@!797930119476936715>'):
-            await message.channel.send(f"My prefix is `{'star!' if pfx is None else pfx}`")
             return
 
     async def on_reaction(self, reaction, user):
@@ -539,23 +575,6 @@ class Listener(object):
             await msg.add_reaction(r)
         self.scroll.append([msg, message.author.id, p, time.time()])
         return
-
-    # Manebooru! Nature is so fascinating ~
-
-    async def CMD_manebooru(self, message):
-        args = message.content.split(' ')
-        if len(args) == 1:
-            pfx = self.settingsmanager.server_get(message.guild.id, 'prefix')
-            await message.channel.send(f"This module is for interfacing with the Manebooru imageboard.\n\
-Please specify a subcommand, or use the `{pfx}help manebooru` command to learn more.")
-            return
-        # interface with module
-        resp = await self.maneinterface.proccommand(message, args[1], args[2:])
-        if resp['status'] == 1:
-            for r in ('⏪', '◀', '▶', '⏩', chr(128256)):
-                await resp['msg'].add_reaction(r)
-            await resp['msg'].edit(**resp['obj'].msgget())
-            self.scroll.append([resp['msg'], message.author.id, resp['obj'], time.time()])
 
     # Minecraft Server Connection
 
@@ -721,12 +740,22 @@ Made by StarGazingHomies#0001, hosted by CVFhyum#0001.
                 prefix = self.settingsmanager.server_get(message.guild.id, 'prefix')
         
             try:
-                commonname = self.get_command(message)['commonname']
-                if commonname == "help":
+                # Get the command
+                command = self.get_command(args[1])
+                # Special help message for asking for help using help xD
+                if command['commonname'] == "help":
                     await message.channel.send("I wonder what the help command does... wait a minute")
                     return
-                with open(os.path.join(self.helppath, f'{commonname}.txt'), 'r') as fin:
-                    helpmsg = fin.read()
+
+                # Read the help file
+                if command['namespace'] is None:
+                    with open(os.path.join(self.helppath, f'{commonname}.txt'), 'r') as fin:
+                        helpmsg = fin.read()
+                else:
+                    with open(os.path.join(self.helppath, command['namespace'], f'{commonname}.txt'), 'r') as fin:
+                        helpmsg = fin.read()
+
+                # Construct and send message
                 embed = discord.Embed(title=f"Info about {commonname}",
                                       description=helpmsg.format(prefix=prefix),
                                       colour=discord.Colour.blue())

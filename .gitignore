@@ -3,3 +3,6 @@
 
 #API keys and bot tokens
 .env
+
+#Log files
+.log

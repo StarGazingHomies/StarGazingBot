@@ -1,8 +1,5 @@
-2021-12-28 17:32:31,263:INFO:main.settings: Overall config acquired.
-2021-12-28 17:32:33,716:INFO:main: Bot ready.
-2021-12-28 17:32:33,716:INFO:main: Current active guilds:
-2021-12-28 17:32:33,716:INFO:main: StarGazingWorkshop (ID: 689681153396834435)
-2021-12-28 17:32:33,716:INFO:main: Atlantica (ID: 698420870670188614)
-2021-12-28 17:32:33,716:INFO:main: StarGazingHomies' Emoji Server 1 (ID: 906231970651070504)
-2021-12-28 17:32:35,843:INFO:main.tracker: StarGazingWorkshop - #bot-testing - Message from StarGazingHomies#0001 [Points: 0.0] - star!stop
-2021-12-28 17:32:43,960:INFO:main.tracker: StarGazingWorkshop - #bot-testing - Message from StarGazingHomies#0001 [Points: -1.0] - star!nevermind
+2021-12-29 21:12:22,983:INFO:main.settings: Overall config acquired.
+2021-12-29 21:12:25,461:INFO:main: Bot ready.
+2021-12-29 21:12:25,461:INFO:main: Current active guilds:
+2021-12-29 21:12:25,461:INFO:main: StarGazingWorkshop (ID: 689681153396834435)
+2021-12-29 21:12:26,103:INFO:main.tracker: StarGazingWorkshop - #bot-testing - Message from StarGazingHomies#0001 [Points: 3.0] - star!help search

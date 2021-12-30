@@ -2,142 +2,142 @@ general:
   about:
     commonname: about
     cooldown: 0
-    exec: self.CMD_about
+    exec: CMD_about
     permission: 1
   addrole:
     commonname: addrole
     cooldown: 0
-    exec: self.CMD_addrole
+    exec: CMD_addrole
     permission: 3
   apply:
     commonname: apply
     cooldown: 7200
-    exec: self.CMD_apply
+    exec: CMD_apply
     permission: 1
   clean:
     commonname: clean
     cooldown: 0
-    exec: self.CMD_clean
+    exec: CMD_clean
     permission: 2
   config:
     commonname: config
     cooldown: 0
-    exec: self.CMD_server_settings
+    exec: CMD_server_settings
     permission: 3
   echo:
     commonname: echo
     cooldown: 0
-    exec: self.CMD_echo
+    exec: CMD_echo
     permission: 3
   eval:
     commonname: eval
     cooldown: 0
-    exec: self.CMD_eval
+    exec: CMD_eval
     permission: 5
   exec:
     commonname: exec
     cooldown: 0
-    exec: self.CMD_exec
+    exec: CMD_exec
     permission: 5
   h:
     alias: help
   help:
     commonname: help
     cooldown: 0
-    exec: self.CMD_help
+    exec: CMD_help
     permission: 1
   invite:
     commonname: invite
     cooldown: 0
-    exec: self.CMD_invite
+    exec: CMD_invite
     permission: 1
   latency:
     alias: ping
   move:
     commonname: move
     cooldown: 0
-    exec: self.CMD_move
+    exec: CMD_move
     permission: 2
   nevermind:
     commonname: nevermind
     cooldown: 0
-    exec: self.nevermind
+    exec: nevermind
     permission: 5
   nick:
     commonname: nick
     cooldown: 0
-    exec: self.CMD_nick
+    exec: CMD_nick
     permission: 2
   perms:
     commonname: perms
     cooldown: 1200
-    exec: self.CMD_perms
+    exec: CMD_perms
     permission: 1
   ping:
     commonname: latency
     cooldown: 0
-    exec: self.CMD_latency
+    exec: CMD_latency
     permission: 1
   pingowner:
     commonname: pingowner
     cooldown: 1200
-    exec: self.CMD_pingowner
+    exec: CMD_pingowner
     permission: 1
   points:
     commonname: points
     cooldown: 7200
-    exec: self.CMD_points
+    exec: CMD_points
     permission: 1
   prefix:
     commonname: prefix
     cooldown: 0
-    exec: self.CMD_prefix
+    exec: CMD_prefix
     permission: 3
   report:
     commonname: report
     cooldown: 0
-    exec: self.CMD_report
+    exec: CMD_report
     permission: 1
   roll:
     commonname: roll
     cooldown: 0
-    exec: self.CMD_roll
+    exec: CMD_roll
     permission: 1
   say:
     commonname: say
     cooldown: 0
-    exec: self.CMD_say
+    exec: CMD_say
     permission: 2
   settings:
     commonname: settings
     cooldown: 0
-    exec: self.CMD_user_settings
+    exec: CMD_user_settings
     permission: 1
   status:
     commonname: status
     cooldown: 0
-    exec: self.CMD_status
+    exec: CMD_status
     permission: 1
   stop:
     commonname: stop
     cooldown: 0
-    exec: self.stop
+    exec: stop
     permission: 5
   temp:
     commonname: temp
     cooldown: 0
-    exec: self.temp
+    exec: temp
     permission: 5
   verify:
     commonname: verify
     cooldown: 0
-    exec: self.CMD_verify
+    exec: CMD_verify
     permission: 1
 hypixel:
   event:
     commonname: event
     cooldown: 0
-    exec: self.CMD_Skyblock_event
+    exec: CMD_Skyblock_event
     permission: 2
   getstats:
     alias: stats
@@ -146,7 +146,7 @@ hypixel:
   glb:
     commonname: glb
     cooldown: 1200
-    exec: self.CMD_guildleaderboard
+    exec: CMD_guildleaderboard
     permission: 2
   guildleaderboard:
     alias: glb
@@ -155,7 +155,7 @@ hypixel:
   loopglb:
     commonname: loopglb
     cooldown: 0
-    exec: self.CMD_Skyblock_glb_loop_command
+    exec: CMD_Skyblock_glb_loop_command
     permission: 2
   r:
     alias: reqs
@@ -164,21 +164,21 @@ hypixel:
   reqs:
     commonname: reqs
     cooldown: 0
-    exec: self.CMD_Skyblock_Reqs
+    exec: CMD_Skyblock_Reqs
     permission: 1
   requirements:
     alias: reqs
   skill:
     commonname: skill
     cooldown: 0
-    exec: self.CMD_Skyblock_skill
+    exec: CMD_Skyblock_skill
     permission: 1
   skills:
     alias: skill
   stats:
     commonname: stats
     cooldown: 0
-    exec: self.CMD_Skyblock_getstats
+    exec: CMD_Skyblock_getstats
     permission: 1
   w:
     alias: weight
@@ -187,7 +187,7 @@ hypixel:
   weight:
     commonname: weight
     cooldown: 0
-    exec: self.CMD_Skyblock_getweight
+    exec: CMD_Skyblock_getweight
     permission: 1
 manebooru:
   f:
@@ -195,37 +195,37 @@ manebooru:
   featured:
     commonname: featured
     cooldown: 0
-    exec: self.CMD_featured
+    exec: CMD_featured
     permission: 1
   pick:
     commonname: pick
     cooldown: 0
-    exec: self.CMD_random
+    exec: CMD_random
     permission: 1
   search:
     commonname: search
     cooldown: 30
-    exec: self.CMD_search
+    exec: CMD_search
     permission: 1
 minecraft:
   start:
     commonname: start
     cooldown: 0
-    exec: self.CMD_start
+    exec: CMD_start
     permission: 5
   stop:
     commonname: stop
     cooldown: 0
-    exec: self.CMD_stop
+    exec: CMD_stop
     permission: 5
 mojang:
   getusername:
     commonname: getusername
     cooldown: 0
-    exec: self.CMD_username
+    exec: CMD_username
     permission: 1
   getuuid:
     commonname: getuuid
     cooldown: 0
-    exec: self.CMD_uuid
+    exec: CMD_uuid
     permission: 1

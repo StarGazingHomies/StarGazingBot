@@ -15,7 +15,7 @@ async def aiorequest(session, url, convert=True, *args, **kwargs):
     async with session.get(url, *args, **kwargs) as resp:
         assert resp.status == 200
         d = await resp.text()
-    #Convert to json?
+    # Convert to json?
     if convert:
         d = json.loads(d)
     return d
@@ -41,7 +41,8 @@ key:       API key (not necessary)"""
     else:
         q_str = ''
     for elem in q:
-        q_str += elem + ", "
+        if elem != '':
+            q_str += elem + ", "
     q_str = q_str[:-2]
     url = f'https://manebooru.art/api/v1/json/search/images?q={q_str}'
     if page:
