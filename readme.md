@@ -9,4 +9,3 @@ Modules will be added and updated based on my current interests.
  - General commands (settings, report, etc.)
  - Hypixel Skyblock
  - Manebooru
-

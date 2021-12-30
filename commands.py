@@ -31,6 +31,7 @@ SKYBLOCK_DICT = yaml.load(open("skyblock_constants.yaml", "r"), Loader=yaml.Full
 cmdinfopath = os.path.join(os.getcwd(), "command", "commandinfo")
 COMMANDMAP = yaml.safe_load(open(os.path.join(cmdinfopath, "commandmap.yaml"), "r"))
 CATEGORYMAP = yaml.safe_load(open(os.path.join(cmdinfopath, "ctgymap.yaml"), "r"))
+NAMESPACEMAP = yaml.safe_load(open(os.path.join(cmdinfopath, "namespacealias.yaml"), "r"))
 
 logger = logging.getLogger('commands')
 
@@ -102,7 +103,7 @@ class Listener(object):
             self.listeners[module] = eval(f"command.{module}.Listener()")
         self.maneinterface = command.manebooru.Listener()                                   # Manebooru interface
 #        self.mcinterface = McMessengerInterface()                                          # Minecraft interface
-        self.helppath = os.path.join(os.getcwd(), 'commanddoc')                             # Documentation path
+        self.helppath = os.path.join(os.getcwd(), 'command', 'commanddoc')                  # Documentation path
         self.scroll = []        # Format: (message, userid, scrollable object, timestamp)
         self.expand = []        # Format: (message, userid, expandable object, timestamp)
         self.verifyreact = []   # Format: (message, userid, verify response obj, timestamp)
@@ -126,17 +127,19 @@ class Listener(object):
 #  Methods
 
     @staticmethod
-    def get_command_from_submap(command, cmdmap):
-        if command in cmdmap:
-            if 'alias' in cmdmap[command]:
-                alias = cmdmap[command]['alias']
-                return cmdmap[alias]
-            return cmdmap[command]
+    def get_command_from_submap(command, submap):
+        if command in submap:
+            if 'alias' in submap[command]:
+                alias = submap[command]['alias']
+                return submap[alias]
+            return submap[command]
         return False
 
     def get_command(self, message):
         if isinstance(message, str):
-            command = message
+            # String input can only be from help module
+            args = message.split(' ')
+            command = args[0]
         else:
             pfx = self.settingsmanager.server_get(message.guild.id, 'prefix')
             args = message.content.split(' ')
@@ -145,17 +148,21 @@ class Listener(object):
         # First, check if the command specifies a namespace.
         # If it does, the namespace is determined.
         # This would not happen with the help message, the only time input is a string.
-        if command in self.listeners:
-            namespace = command
-            command = args[1]
-            if command in COMMANDMAP[namespace]:
-                return {'namespace':namespace, **COMMANDMAP[namespace][command]}
-            else:
-                return None
+        # Alias check
+        if len(args) >= 2:
+            if command in NAMESPACEMAP:
+                command = NAMESPACEMAP[command]
+
+            if command in self.listeners:
+                submap = COMMANDMAP[command]
+                ans = self.get_command_from_submap(args[1], submap)
+                if ans:
+                    return {'namespace':command, **ans}
+                else:
+                    return None
 
         # Then, search the general commands
-        generalmap = COMMANDMAP['general']
-        ans = self.get_command_from_submap(command, generalmap)
+        ans = self.get_command_from_submap(command, COMMANDMAP['general'])
         if ans:
             return {'namespace': None, **ans}
 
@@ -163,8 +170,8 @@ class Listener(object):
         try:
             settings = self.settingsmanager.server_get(message.guild.id)
             for key in settings['namespaces']:
-                subcmdmap = COMMANDMAP[key]
-                ans = self.get_command_from_submap(command, subcmdmap)
+                submap = COMMANDMAP[key]
+                ans = self.get_command_from_submap(command, submap)
                 if ans:
                     return {'namespace': key, **ans}
         except AttributeError:
@@ -172,8 +179,9 @@ class Listener(object):
             pass
 
         # Next, search through all commands
-        for key, subcmdmap in COMMANDMAP.items():
-            ans = self.get_command_from_submap(command, subcmdmap)
+        for key in COMMANDMAP:
+            submap = COMMANDMAP[key]
+            ans = self.get_command_from_submap(command, submap)
             if ans:
                 return {'namespace': key, **ans}
 
@@ -339,7 +347,6 @@ class Listener(object):
             # Get command
             command = self.get_command(message)
 
-            print(command)
             if not command:
                 # Command not found
                 return
@@ -741,7 +748,10 @@ Made by StarGazingHomies#0001, hosted by CVFhyum#0001.
         
             try:
                 # Get the command
-                command = self.get_command(args[1])
+                command = self.get_command(message.content[len(message.content.split(' ')[0])+1:])
+                if command is None:
+                    await message.channel.send("That command does not exist!")
+                    return
                 # Special help message for asking for help using help xD
                 if command['commonname'] == "help":
                     await message.channel.send("I wonder what the help command does... wait a minute")
@@ -749,14 +759,15 @@ Made by StarGazingHomies#0001, hosted by CVFhyum#0001.
 
                 # Read the help file
                 if command['namespace'] is None:
-                    with open(os.path.join(self.helppath, f'{commonname}.txt'), 'r') as fin:
+                    with open(os.path.join(self.helppath, f'{command["commonname"]}.txt'), 'r') as fin:
                         helpmsg = fin.read()
                 else:
-                    with open(os.path.join(self.helppath, command['namespace'], f'{commonname}.txt'), 'r') as fin:
+                    path = os.path.join(self.helppath, command['namespace'], f'{command["commonname"]}.txt')
+                    with open(path, 'r') as fin:
                         helpmsg = fin.read()
 
                 # Construct and send message
-                embed = discord.Embed(title=f"Info about {commonname}",
+                embed = discord.Embed(title=f"Info about {command['commonname']}",
                                       description=helpmsg.format(prefix=prefix),
                                       colour=discord.Colour.blue())
                 embed.set_footer(text=footer)
