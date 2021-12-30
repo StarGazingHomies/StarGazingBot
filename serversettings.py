@@ -31,7 +31,7 @@ async def SettingTypeCheck(guild, setting, value):
         return -2
 
     if ':' in stype:
-        #Not going to check here!
+        # Not going to check here!
         return -3
 
     if isinstance(stype, tuple):
@@ -79,7 +79,7 @@ class SettingsManager():
             self.path = os.path.join(os.getcwd(), "settings")
             self.serverpath = os.path.join(self.path, "servers")
             self.helppath = os.path.join(self.path, "settingsdoc")
-            #Overall settings - this is important for the bot to start running.
+            # Overall settings - this is important for the bot to start running.
             self.cfg = yaml.safe_load(open(os.path.join(os.getcwd(), "settings", "config.env"), 'r'))
             logger.info("Overall config acquired.")
         except:
@@ -97,25 +97,25 @@ It is called automatically upon object init."""
                 if file.name == '.DS_Store':
                     continue
                 try:
-                    server = yaml.safe_load(open(file.path,'r'))
+                    server = yaml.safe_load(open(file.path, 'r'))
                     self.server_specific[server['id']] = server
                     self.server_check(server['id'])
                 except Exception as e:
                     logger.error()
-                    return -1       #Operation not completed
+                    return -1       # Operation not completed
         return
 
-    #Checks validity of server settings upon startup
+    # Checks validity of server settings upon startup
     def server_check(self, server_id, autosave=True):
         settingsdata = self.server_specific[server_id]
         newsettingsdata = {}
         for setting in SETTING_TYPES.keys():
             try:
-                #Norminal
+                # Norminal
                 newsettingsdata[setting] = settingsdata[setting]
                 settingsdata.pop(setting)
             except KeyError:
-                #No setting!
+                # No setting!
                 newsettingsdata[setting] = DEFAULT_SETTINGS[setting]
                 logger.warning(f"Missing setting {setting} in server {server_id}. Replaced with default {DEFAULT_SETTINGS[setting]}.")
         for setting, val in settingsdata.items():
@@ -125,18 +125,19 @@ It is called automatically upon object init."""
             yaml.dump(newsettingsdata, self.server_open(server_id))
         return
 
-    #Gets the message
+    # Gets the help message
     def help_get(self, setting):
+        print(os.path.join(self.helppath, f'{setting}.txt'))
         with open(os.path.join(self.helppath, f'{setting}.txt')) as fin:
             result = fin.read()
         return result
 
-    #Fake function!
+    # Fake function!
     def global_edit(self, setting, value):
         """I simply will NOT let you edit these settings! They can easily break the bot!"""
         return
 
-    #Server settings
+    # Server settings
     def server_open(self, server_id, mode='w'):
         """Opens a server's config file from the default directory. Returns a file object."""
         return open(os.path.join(self.serverpath,f'{server_id}.yaml'), mode)
@@ -152,17 +153,17 @@ It is called automatically upon object init."""
 
     async def server_edit(self, server, setting, value, autosave = True):
         if not ( setting.lower() in SETTING_TYPES.keys() ):
-            return -1 #Valid setting not found
+            return -1 # Valid setting not found
         if setting.lower() == 'id':
-            return -2 #Can't edit the id - it is your guild's id! It's in the settings for convenience
+            return -2 # Can't edit the id - it is your guild's id! It's in the settings for convenience
         checkresult = await SettingTypeCheck(server, setting, value)
-        print(checkresult)
+#        print(checkresult)
         if checkresult == -2:
-            return -4 #Conditional
+            return -4 # Conditional
         if checkresult == -3:
-            return -5 #Disable/enable commands
+            return -5 # Disable/enable commands
         if not checkresult:
-            return -3 #Not the right type
+            return -3 # Not the right type
         self.server_specific[server.id][setting] = value
         if autosave:
             yaml.dump(self.server_specific[server.id], self.server_open(server.id))

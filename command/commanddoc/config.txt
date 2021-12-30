@@ -1,9 +1,9 @@
 Configures SERVER settings. Only usable by server owners and bot owner.
 
 **Usage:**
-`{prefix}config [page]`
-`{prefix}config <setting>`
-`{prefix}config <setting> <value>`
+`{prefix}config [page]` shows settings
+`{prefix}config <setting>` shows help  message for <setting>
+`{prefix}config <setting> <value>` sets <setting> as <value>
 
 **Example:**
 `{prefix}config 2`

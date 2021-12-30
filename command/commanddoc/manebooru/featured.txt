@@ -8,3 +8,5 @@ Gets the featured image on the Manebooru imageboard.
 
 **Aliases:**
 `{prefix}manebooru f`
+`{prefix}featured`
+`{prefix}f`

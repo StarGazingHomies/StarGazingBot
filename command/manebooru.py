@@ -1,9 +1,4 @@
-import os
-import time
-
 import aiohttp
-import discord
-import yaml
 
 from modules.manebooru.struct import ManebooruPagesInteractive
 from modules.manebooru.api import API_featured, API_search
@@ -27,7 +22,7 @@ class Listener(object):
     async def CMD_featured(self, message):
         data = await API_featured(self.session)
         await message.channel.send(f"https://manebooru.art/images/{data['image']['id']}")
-        return {"status":0}
+        return {"status": 0}
 
     async def CMD_random(self, message):
         args = message.content.split(' ')
@@ -50,24 +45,25 @@ class Listener(object):
             data = await API_search(self.session, querylist)
         except AssertionError:
             await message.channel.send("Something went wrong with the request.")
+            return
 
         if data['total'] == 0:
             await message.channel.send("No images found!")
-            return {"status":0}
+            return {"status": 0}
         
         img = data['images'][0]
         imgurl = f"https://manebooru.art/images/{img['id']}"
-        msg = await message.channel.send(f"[{data['total']} results] [ID #{img['id']}] {imgurl}")
-        return {"status":0}
+        await message.channel.send(f"[{data['total']} results] [ID #{img['id']}] {imgurl}")
+        return {"status": 0}
 
     async def CMD_search(self, message):
         cnt = 0
         for i, char in enumerate(message.content):
             if cnt == 2:
                 break
-            if char==' ':
-                cnt+=1
-        args = message.content[i:].split(',')
+            if char == ' ':
+                cnt += 1
+        args = message.content[cnt:].split(',')
         keys = {}
         querylist = []
 

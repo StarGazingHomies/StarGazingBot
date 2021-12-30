@@ -6,3 +6,11 @@
 
 #Log files
 .log
+
+#Settings, logs, events, and interactions folders
+settings/servers
+logs
+interactions
+events
+cache
+userdata

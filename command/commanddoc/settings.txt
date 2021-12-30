@@ -1,13 +1,13 @@
 Configures USER settings.
 
 **Usage:**
-`{prefix}settings [page]`
-`{prefix}settings <setting>`
-`{prefix}settings <setting> <value>`
+`{prefix}settings [page]` shows settings
+`{prefix}settings <setting>` shows help  message for <setting>
+`{prefix}settings <setting> <value>` sets <setting> as <value>
 
 **Example:**
 `{prefix}settings 2`
 `{prefix}settings expandweight False`
 
 **Aliases:**
-`{prefix}setting`
+None

@@ -18,74 +18,28 @@ import time
 
 from membermanager import UserManager
 from serversettings import GetSettingsManager as SettingsManager
-from event import CLS_EventFileHandler as EventManager
+# These two will be moved to their dedicated modules soontm
 from modules.dnd.roll import calculate as rolldice
-from modules.hypixel.player import Player
-from modules.hypixel.guild import getguild
 import modules.minecraft.mojangapi as mojangapi
+# Response objects for common reactions
 from structures import PagedResponse, ExpandableResponse, VerifyResponse
+# This imports all modules designated by the __init__ file in commands folder
 import command
+# Quality of Life Functions
+from func import sec_to_time
 
 SKYBLOCK_DICT = yaml.load(open("skyblock_constants.yaml", "r"), Loader=yaml.FullLoader)
 
 cmdinfopath = os.path.join(os.getcwd(), "command", "commandinfo")
 COMMANDMAP = yaml.safe_load(open(os.path.join(cmdinfopath, "commandmap.yaml"), "r"))
 CATEGORYMAP = yaml.safe_load(open(os.path.join(cmdinfopath, "ctgymap.yaml"), "r"))
+NAMESPACEMAP = yaml.safe_load(open(os.path.join(cmdinfopath, "namespacealias.yaml"), "r"))
 
 logger = logging.getLogger('commands')
 
-# Quality of Life Functions
-
-
-def betternum(i, sep=','):
-    stri = str(i)
-    i = -3
-    while i > -len(stri):
-        stri = stri[:i] + sep + stri[i:]
-        i -= 3 + len(sep)
-    return stri
-
-
-def timetosec(t):
-    if t[-1] == 's':
-        return int(t[:-1])
-    elif t[-1] == 'm':
-        return 60 * int(t[:-1])
-    elif t[-1] == 'h':
-        return 3600 * int(t[:-1])
-    elif t[-1] == 'd':
-        return 86400 * int(t[:-1])
-    elif t[-1] == 'w':
-        return 604200 * int(t[:-1])
-    else:
-        return -1
-
-
-def sec_to_time(s, short=True):
-    if s < 0:
-        return "<0 seconds"
-    responses = ("ms", "s", "m", "h", "d", "w")
-    if not short:
-        responses = (" milliseconds", " seconds", " minutes", " hours", " days", " weeks")
-    if s < 0.001:
-        return "<1 ms"
-    elif s < 1:
-        return f"{round(s*1000,2)}{responses[0]}"
-    elif s < 60:
-        return f"{round(s,2)}{responses[1]}"
-    elif s < 3600:
-        return f"{int(s//60)}{responses[2]}, {round(s%60,2)}{responses[1]}"
-    elif s < 86400:
-        return f"{int(s//3600)}{responses[3]}, {s%3600//60}{responses[2]}, {round(s%60,2)}{responses[1]}"
-    elif s < 86400*7:
-        return f"{round(s/86400,2)}{responses[4]}"
-    else:
-        return f"{round(s/86400/7,2)}{responses[5]}"
 
 # Handler Object
 # Method that listens to Discord messages, and checks for reactions/follow up msgs.
-
-
 class Listener(object):
     def __init__(self, client):
         self.version = "Version: 1w6a"                                                      # Version
@@ -94,7 +48,6 @@ class Listener(object):
         self.reqsession = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20))    # Client for requests
         self.usermanager = UserManager()                                                    # User manager
         self.settingsmanager = SettingsManager()                                            # Settings manager
-        self.eventmanager = EventManager()
 
         # Listeners
         self.listeners = {}
@@ -102,7 +55,7 @@ class Listener(object):
             self.listeners[module] = eval(f"command.{module}.Listener()")
         self.maneinterface = command.manebooru.Listener()                                   # Manebooru interface
 #        self.mcinterface = McMessengerInterface()                                          # Minecraft interface
-        self.helppath = os.path.join(os.getcwd(), 'commanddoc')                             # Documentation path
+        self.helppath = os.path.join(os.getcwd(), 'command', 'commanddoc')                  # Documentation path
         self.scroll = []        # Format: (message, userid, scrollable object, timestamp)
         self.expand = []        # Format: (message, userid, expandable object, timestamp)
         self.verifyreact = []   # Format: (message, userid, verify response obj, timestamp)
@@ -126,17 +79,19 @@ class Listener(object):
 #  Methods
 
     @staticmethod
-    def get_command_from_submap(command, cmdmap):
-        if command in cmdmap:
-            if 'alias' in cmdmap[command]:
-                alias = cmdmap[command]['alias']
-                return cmdmap[alias]
-            return cmdmap[command]
+    def get_command_from_submap(command, submap):
+        if command in submap:
+            if 'alias' in submap[command]:
+                alias = submap[command]['alias']
+                return submap[alias]
+            return submap[command]
         return False
 
     def get_command(self, message):
         if isinstance(message, str):
-            command = message
+            # String input can only be from help module
+            args = message.split(' ')
+            command = args[0]
         else:
             pfx = self.settingsmanager.server_get(message.guild.id, 'prefix')
             args = message.content.split(' ')
@@ -145,17 +100,21 @@ class Listener(object):
         # First, check if the command specifies a namespace.
         # If it does, the namespace is determined.
         # This would not happen with the help message, the only time input is a string.
-        if command in self.listeners:
-            namespace = command
-            command = args[1]
-            if command in COMMANDMAP[namespace]:
-                return {'namespace':namespace, **COMMANDMAP[namespace][command]}
-            else:
-                return None
+        # Alias check
+        if len(args) >= 2:
+            if command in NAMESPACEMAP:
+                command = NAMESPACEMAP[command]
+
+            if command in self.listeners:
+                submap = COMMANDMAP[command]
+                ans = self.get_command_from_submap(args[1], submap)
+                if ans:
+                    return {'namespace':command, **ans}
+                else:
+                    return None
 
         # Then, search the general commands
-        generalmap = COMMANDMAP['general']
-        ans = self.get_command_from_submap(command, generalmap)
+        ans = self.get_command_from_submap(command, COMMANDMAP['general'])
         if ans:
             return {'namespace': None, **ans}
 
@@ -163,8 +122,8 @@ class Listener(object):
         try:
             settings = self.settingsmanager.server_get(message.guild.id)
             for key in settings['namespaces']:
-                subcmdmap = COMMANDMAP[key]
-                ans = self.get_command_from_submap(command, subcmdmap)
+                submap = COMMANDMAP[key]
+                ans = self.get_command_from_submap(command, submap)
                 if ans:
                     return {'namespace': key, **ans}
         except AttributeError:
@@ -172,8 +131,9 @@ class Listener(object):
             pass
 
         # Next, search through all commands
-        for key, subcmdmap in COMMANDMAP.items():
-            ans = self.get_command_from_submap(command, subcmdmap)
+        for key in COMMANDMAP:
+            submap = COMMANDMAP[key]
+            ans = self.get_command_from_submap(command, submap)
             if ans:
                 return {'namespace': key, **ans}
 
@@ -333,89 +293,95 @@ class Listener(object):
                     if match == message.content and position == message.channel.id:
                         await result
 
-        # Existing server
-        if message.content.startswith(pfx):
+        # Existing server - ignore all messages that does not start with prefix
+        if not message.content.startswith(pfx):
+            return
 
-            # Get command
-            command = self.get_command(message)
+        # Everything that isn't a command is now filtered out.
+        command = self.get_command(message)
 
-            print(command)
-            if not command:
-                # Command not found
-                return
+        if not command:
+            # Command not found
+            return
 
-            p = self.check_perms(message, command)
-            if p == 0:
-                # Not enough permissions
-                logger.info("{message.author} does not have enough permission to execute {command}.")
-                await message.channel.send(embed=discord.Embed(title="You can't use this command!",
-                                                               description="If you think this is an error, please \
-                                                                           contact a staff member.",
-                                                               colour=discord.Colour.red()))
-                return
+        p = self.check_perms(message, command)
+        if p == 0:
+            # Not enough permissions
+            logger.info("{message.author} does not have enough permission to execute {command}.")
+            await message.channel.send(embed=discord.Embed(title="You can't use this command!",
+                                                           description="If you think this is an error, please \
+                                                                       contact a staff member.",
+                                                           colour=discord.Colour.red()))
+            return
 
-            # Check cooldown
-            if p != 2:
-                try:
-                    cooldown_type = command['cooldown']
-                    logger.debug(f"The cooldown type of command {command} has been identified as {cooldown_type}.")
-                    if cooldown_type == 0:
-                        time_since_last = time.time() - self.cooldown[message.author.id]['last']
-                        if time_since_last < 10 and p <= 1:
-                            too_fast = f"""You are sending commands too fast!"
-                            Please wait {round(10-time_since_last,2)} seconds before trying again."""
-                            logger.info(f"{message.author} is sending commands too fast.")
+        # Check cooldown
+        if p != 2:
+            try:
+                cooldown_type = command['cooldown']
+                logger.debug(f"The cooldown type of command {command} has been identified as {cooldown_type}.")
+                if cooldown_type == 0:
+                    time_since_last = time.time() - self.cooldown[message.author.id]['last']
+                    if time_since_last < 10 and p <= 1:
+                        too_fast = f"""You are sending commands too fast!"
+                        Please wait {round(10-time_since_last,2)} seconds before trying again."""
+                        logger.info(f"{message.author} is sending commands too fast.")
+                        await message.channel.send(embed=discord.Embed(title="Please chill!",
+                                                                       description=too_fast,
+                                                                       colour=discord.Colour.orange()))
+                        # Sending commands too fast removes points
+                        self.tracker.remove_points(message.guild.id, message.author.id, 15)
+                        return
+
+                    self.cooldown[message.author.id]['last'] = time.time()
+                else:
+                    try:
+                        time_since_last = time.time() - self.cooldown[message.author.id][command['commonname']]
+                        if time_since_last < cooldown_type:
+                            logger.info(f"{message.author} is sending the command {command} too fast.")
+                            too_fast = f"You are sending commands too fast!\n\
+                            Please wait {sec_to_time(cooldown_type - time_since_last, short=False)} before retrying"
                             await message.channel.send(embed=discord.Embed(title="Please chill!",
                                                                            description=too_fast,
                                                                            colour=discord.Colour.orange()))
                             # Sending commands too fast removes points
                             self.tracker.remove_points(message.guild.id, message.author.id, 15)
                             return
-                        
-                        self.cooldown[message.author.id]['last'] = time.time()
-                    else:
-                        try:
-                            time_since_last = time.time() - self.cooldown[message.author.id][command['commonname']]
-                            if time_since_last < cooldown_type:
-                                logger.info(f"{message.author} is sending the command {command} too fast.")
-                                too_fast = f"You are sending commands too fast!\n\
-                                Please wait {sec_to_time(cooldown_type - time_since_last, short=False)} before retrying"
-                                await message.channel.send(embed=discord.Embed(title="Please chill!",
-                                                                               description=too_fast,
-                                                                               colour=discord.Colour.orange()))
-                                # Sending commands too fast removes points
-                                self.tracker.remove_points(message.guild.id, message.author.id, 15)
-                                return
-                        except KeyError:
-                            # Setup cooldown for cmd specific
-                            self.cooldown[message.author.id] = {command['commonname']: time.time()}
-                except KeyError:
-                    # Since bot restart, the author has not sent any commands! So no cooldown, yay!
-                    self.cooldown[message.author.id] = {'last': time.time()}
-            
-            # Find command
-            try:
-                # Result should return dict containing status
-                # 0 = good exec
-                # 1 = good exec, do something now
-                if command['namespace'] is None:
-                    result = await eval(f"self.{command['exec']}(message)")
-                else:
-                    result = await eval(f"self.listeners['{command['namespace']}'].{command['exec']}(message)")
+                    except KeyError:
+                        # Setup cooldown for cmd specific
+                        self.cooldown[message.author.id] = {command['commonname']: time.time()}
+            except KeyError:
+                # Since bot restart, the author has not sent any commands! So no cooldown, yay!
+                self.cooldown[message.author.id] = {'last': time.time()}
 
-                if not result:
-                    return
-                if result['status'] == 1:
-                    if 'add' in result:
-                        if result['add'] == 'scroll':
-                            for r in ('⏪', '◀', '▶', '⏩', chr(128256)):
-                                await result['msg'].add_reaction(r)
-                            await result['msg'].edit(**result['obj'].msgget())
-                            self.scroll.append([result['msg'], message.author.id, result['obj'], time.time()])
+        # Find command
+        try:
+            # Result should return dict containing status
+            # 0 = good exec
+            # 1 = good exec, do something now
+            if command['namespace'] is None:
+                result = await eval(f"self.{command['exec']}(message)")
+            else:
+                result = await eval(f"self.listeners['{command['namespace']}'].{command['exec']}(message)")
 
-            except Exception as e:
-                raise e
-            return
+            if not result:
+                return
+            if result['status'] == 1:
+                if 'add' in result:
+                    if result['add'] == 'scroll':
+                        for r in ('⏪', '◀', '▶', '⏩', chr(128256)):
+                            await result['msg'].add_reaction(r)
+                        await result['msg'].edit(**result['obj'].msgget())
+                        self.scroll.append([result['msg'], message.author.id, result['obj'], time.time()])
+
+                    if result['add'] == 'expand':
+                        await result['msg'].add_reaction('⬇️')
+                        if not 'author' in result:
+                            result['author'] = message.author.id
+                        self.expand.append([result['msg'], result['author'], result['obj'], time.time()])
+
+        except Exception as e:
+            raise e
+        return
 
     async def on_reaction(self, reaction, user):
         # Handling reactions by checking if it is looking for one.
@@ -741,7 +707,10 @@ Made by StarGazingHomies#0001, hosted by CVFhyum#0001.
         
             try:
                 # Get the command
-                command = self.get_command(args[1])
+                command = self.get_command(message.content[len(message.content.split(' ')[0])+1:])
+                if command is None:
+                    await message.channel.send("That command does not exist!")
+                    return
                 # Special help message for asking for help using help xD
                 if command['commonname'] == "help":
                     await message.channel.send("I wonder what the help command does... wait a minute")
@@ -749,14 +718,15 @@ Made by StarGazingHomies#0001, hosted by CVFhyum#0001.
 
                 # Read the help file
                 if command['namespace'] is None:
-                    with open(os.path.join(self.helppath, f'{commonname}.txt'), 'r') as fin:
+                    with open(os.path.join(self.helppath, f'{command["commonname"]}.txt'), 'r') as fin:
                         helpmsg = fin.read()
                 else:
-                    with open(os.path.join(self.helppath, command['namespace'], f'{commonname}.txt'), 'r') as fin:
+                    path = os.path.join(self.helppath, command['namespace'], f'{command["commonname"]}.txt')
+                    with open(path, 'r') as fin:
                         helpmsg = fin.read()
 
                 # Construct and send message
-                embed = discord.Embed(title=f"Info about {commonname}",
+                embed = discord.Embed(title=f"Info about {command['commonname']}",
                                       description=helpmsg.format(prefix=prefix),
                                       colour=discord.Colour.blue())
                 embed.set_footer(text=footer)
@@ -840,24 +810,24 @@ Made by StarGazingHomies#0001, hosted by CVFhyum#0001.
             pass
 
     async def CMD_server_settings(self, message):
-        #Server Settings (config)
+        # Server Settings (config)
 
         args = message.content.split(' ')
         if len(args) >= 3:
-            #Specific setting
+            # Specific setting
             setting = args[1].lower()
             value = args[2]
             prefix = self.settingsmanager.server_get(message.guild.id, 'prefix')
 
-            #Try to convert to None
+            # Try to convert to None
             if value.lower() == 'none':
                 value = None
-            #Try to convert to bool
-            elif value.lower() in ('n','no','false'):
+            # Try to convert to bool
+            elif value.lower() in ('n', 'no', 'false'):
                 value = False
-            elif value.lower() in ('y','yes','true'):
+            elif value.lower() in ('y', 'yes', 'true'):
                 value = True
-            #Handles people that use mentions instead of IDs >:(((
+            # Handles people that use mentions instead of IDs >:(((
             elif value.startswith('<'):
                 nv = 0
                 for char in value:
@@ -865,7 +835,7 @@ Made by StarGazingHomies#0001, hosted by CVFhyum#0001.
                         nv *= 10
                         nv += ord(char) - 48
                 value = nv
-            #Try to convert value to int
+            # Try to convert value to int
             else:
                 try:
                     value = int(value)
@@ -874,7 +844,7 @@ Made by StarGazingHomies#0001, hosted by CVFhyum#0001.
 
             result = await self.settingsmanager.server_edit(message.guild, setting, value)
 
-            #Result handling
+            # Result handling
             if result == -1:
                 await message.channel.send("No matching setting was found.")
             elif result == -2:
@@ -889,34 +859,33 @@ Made by StarGazingHomies#0001, hosted by CVFhyum#0001.
                 await message.channel.send(f"The setting {setting} is changed to {value}.")
 
         elif len(args) == 2:
-            #Get help message
+            # Get help message
             setting = args[1]
             try:
-                helpmsg = self.settingsmanager.help_get(setting)
+                help_message = self.settingsmanager.help_get(setting)
             except FileNotFoundError:
                 await message.channel.send("Such a setting does not exist!")
                 return
 
-            #Generate embed and send
+            # Generate embed and send
             prefix = self.settingsmanager.server_get(message.guild.id, 'prefix')
-            embed = discord.Embed(title=setting, description=helpmsg.format(prefix=prefix))
+            embed = discord.Embed(title=setting, description=help_message.format(prefix=prefix))
             await message.channel.send(embed=embed)
             return
 
         elif len(args) == 1:
-            #Generate pages when there are more settings. Right now, it isn't necessary.
+            # Generate pages when there are more settings. Right now, it isn't necessary.
             settings = self.settingsmanager.server_get(message.guild.id)
             embed = discord.Embed(title="Server settings",colour=discord.Colour.purple())
             for setting, val in settings.items():
-                if setting in ('id'):
+                if setting in ('id', ):
                     continue
-#                capitalizedsetting = setting[0].upper() + setting[1:].lower()
                 embed.add_field(name=setting, value=str(val), inline=False)
             await message.channel.send(embed=embed)
 
     async def CMD_prefix(self, message):
-        #Alias to {prefix}settings prefix <prefix>
-        pfx = message.content[len(message.content.split(' ')[0])+1:]    #Stuff after first space
+        # Alias to {prefix}settings prefix <prefix>
+        pfx = message.content[len(message.content.split(' ')[0])+1:]    # Stuff after first space
         if ' ' in pfx:
             await message.channel.send("Spaces can't be in the prefix!")
             return
@@ -924,7 +893,7 @@ Made by StarGazingHomies#0001, hosted by CVFhyum#0001.
             if ord(char) >= 128:
                 await message.channel.send("Only characters, numbers, and common punctuation are available as prefixes.")
                 return
-        rtrn = self.settingsmanager.server_edit(message.guild.id, 'prefix', pfx)
+        self.settingsmanager.server_edit(message.guild.id, 'prefix', pfx)
         await message.channel.send("Prefix changed.")
 
     async def CMD_conditional(self, message):
@@ -1348,278 +1317,4 @@ If you want to add any extra information, you can provide it here.""",
             await message.channel.send("An error occured. Please try again later.")
         await message.channel.send(f"The username of {uuid} is {result}.")
 
-    async def CMD_Skyblock_getstats(self, message, limited=3):
-        """Returns all basic Skyblock stats, such as skills, slayers, and dungeon levels.
-Usage: `at!getstats [username]`
-Cooldown: 10s"""
-        # Parse command
-        args = message.content.split(' ')
-        color = discord.Colour.blue()
-        if len(args) >= 2:
-            identifier = args[1]
-        else:
-            try:
-                identifier = message.author.nick.split('|')[-1]
-            except AttributeError:
-                identifier = message.author.name
-
-        #Hypixel API request
-        player = Player(self.reqsession, identifier)
-        result = await player.parse_skyblock(self.reqsession)
-
-        #If no profile
-        if result['status'] == -1:
-            embed = discord.Embed(title=f"{player.username} has no skyblock profiles!", colour=discord.Colour.red())
-            embed.set_footer(text="If you believe this is an error, please report.")
-            await message.channel.send(embed=embed)
-            return
-        if result['status'] == -2:
-            embed = discord.Embed(title=f"{identifier} does not exist!", colour=discord.Colour.red())
-            embed.set_footer(text="If you believe this is an error, please report.")
-            await message.channel.send(embed=embed)
-            return
-
-        t0 = time.perf_counter()
-        #Generate return message
-        return_msg = f"\n**Skill levels:**\n{player.username} has a skill average of **{player.skill_avg:.4}**```elm\n"
-        short_return_msg = f"\n**Skill levels:**\n{player.username} has a skill average of **{player.skill_avg:.4}**\n"
-        short_return_msg += f"**Slayer xp:** \n{player.username} has **{betternum(player.slayer_total)}** total slayer experience\n"
-        short_return_msg += f"**Catacombs:**\n{player.username} has a catacombs level of **{round(player.dungeons['catacombs'].level,2)}**\n"
-        #Skills
-        for skill in SKYBLOCK_DICT["SKILLNAMES"]:
-            lvl = player.skills[skill].level
-            return_msg += f"{skill}{' '*(11-len(skill))}> {round(lvl, 2)}\n"
-        #Slayer
-        return_msg += f"```\n**Slayer xp:** \n{player.username} has **{betternum(player.slayer_total)}** total slayer experience\n```elm\n"
-        for slayer in SKYBLOCK_DICT["SLAYERS"]:
-            xp = player.slayers[slayer].exp
-            return_msg += f"{slayer}{' '*(11-len(slayer))}> {betternum(xp)}\n"
-        return_msg += "```\n**Dungeon levels:** \n```elm\n"
-        #Dungeons
-        for dungstat in SKYBLOCK_DICT["DUNGEONS"]:
-            lvl = player.dungeons[dungstat].level
-            return_msg += f"{dungstat}{' '*(11-len(dungstat))}> {round(lvl, 2)}\n"
-        #Dungeon Classes
-        for dungstat in SKYBLOCK_DICT["CLASSES"]:
-            lvl = player.dungeons[dungstat].level
-            return_msg += f"{dungstat}{' '*(11-len(dungstat))}> {round(lvl, 2)}\n"
-        return_msg += "```"
-        #Embeds
-        shortembed = discord.Embed(title = player.username + "'s Stats", description=short_return_msg, color = color)
-        shortembed.set_footer(text="React with ⬇️to show details")
-        embed = discord.Embed(title = player.username + "'s Stats", description=return_msg, color = color)
-        timeoutembed = discord.Embed(title = player.username + "'s Stats", description=short_return_msg, color = color)
-        timeoutembed.set_footer(text="Timed Out")
-        newmessage = await message.channel.send(embed=shortembed)
-        await newmessage.add_reaction('⬇️')
-        t1 = time.perf_counter()
-
-        #Timing data for bot owner
-        if message.author.id == 523717630972919809:
-            await message.channel.send(f"The request to the Hypixel API took {result['get']} seconds.\nProcessing the data took {result['proc']} seconds.\nThe response message took {round(t1-t0,7)} seconds to generate and send.")
-
-        #Reaction processing
-        expobj = ExpandableResponse(shortembed, embed, timeoutembed)
-        self.expand.append([newmessage, message.author.id, expobj, time.time()])
-        return
-
-    async def CMD_Skyblock_getweight(self, message, limited=3):
-        """
-Returns the weight of the given user.
-message: discord.Message object"""
-        #Parse command
-        args = message.content.split(' ')
-        if len(args) >= 2:
-            identifier = args[1]
-        else:
-            try:
-                identifier = message.author.nick.split('|')[-1].replace(' ','')
-            except AttributeError:
-                identifier = message.author.name
-
-        await self.Skyblock_weightdisp(message.author, message.channel, identifier, timing = (message.author.id == 523717630972919809))
-
-    async def Skyblock_weightdisp(self, author, channel, identifier, expanded=False, timing=False):
-        color = discord.Colour.blue()
-        #Hypixel API request
-        player = Player(self.reqsession, identifier)
-        result = await player.parse_all(self.reqsession)
-
-        #If no profile
-        if result['status'] == -1:
-            embed = discord.Embed(title=f"{player.username} has no skyblock profiles!", colour=discord.Colour.red())
-            embed.set_footer(text="If you believe this is an error, please report.")
-            await channel.send(embed=embed)
-            return
-        if result['status'] == -2:
-            embed = discord.Embed(title=f"{identifier} does not exist!", colour=discord.Colour.red())
-            embed.set_footer(text="If you believe this is an error, please report.")
-            await channel.send(embed=embed)
-            return
-
-        t0 = time.perf_counter()
-        #Generate long msg
-        return_msg = f"[{player.rank}] {player.username} has a weight of {round(player.totalweight,3)} ({round(player.weight[0],3)} + {round(player.weight[1],3)} overflow)\n\n**Skills weight:** \n```elm\n"
-        short_return_msg = f"[{player.rank}] {player.username} has a weight of {round(player.totalweight,3)} ({round(player.weight[0],3)} + {round(player.weight[1],3)} overflow)"
-        #Skills
-        for skill in player.skills.values():
-            weight = skill.weights
-            lvl = round(skill.level,2)
-            if weight[1] != 0:
-                return_msg += f"{skill.type}{' '*(11-len(skill.type))}> lvl: {lvl}{' '*(8-len(str(lvl)))}> weight: {round(weight[0],2)} + {round(weight[1],2)} overflow\n"
-            else:
-                return_msg += f"{skill.type}{' '*(11-len(skill.type))}> lvl: {lvl}{' '*(8-len(str(lvl)))}> weight: {round(weight[0],2)}\n"
-        #Slayers
-        return_msg += "```\n**Slayer weight:** \n```elm\n"
-        for slayer in player.slayers.values():
-            weight = slayer.weights
-            xp = slayer.exp
-            if weight[1] != 0:
-                return_msg += f"{slayer.type}{' '*(11-len(slayer.type))}> xp: {xp}{' '*(9-len(str(xp)))}> weight: {round(weight[0],2)} + {round(weight[1],2)} overflow\n"
-            else:
-                return_msg += f"{slayer.type}{' '*(11-len(slayer.type))}> xp: {xp}{' '*(9-len(str(xp)))}> weight: {round(weight[0],2)}\n"
-        #Dungeons
-        return_msg += "```\n**Dungeon weight:** \n```elm\n"
-        for dungstat in player.dungeons.values():
-            weight = dungstat.weights
-            lvl = round(dungstat.level,2)
-            if weight[1] != 0:
-                return_msg += f"{dungstat.type}{' '*(11-len(dungstat.type))}> lvl: {lvl}{' '*(8-len(str(lvl)))}> weight: {round(weight[0],2)} + {round(weight[1],2)} overflow\n"
-            else:
-                return_msg += f"{dungstat.type}{' '*(11-len(dungstat.type))}> lvl: {lvl}{' '*(8-len(str(lvl)))}> weight: {round(weight[0],2)}\n"
-        return_msg += "```"
-
-        #discord.Embed objects for reaction
-        shortembed = discord.Embed(title = player.username + "'s Weight", description=short_return_msg, color = color)
-        shortembed.set_footer(text="React with ⬇️to show details")
-        embed = discord.Embed(title = player.username + "'s Weight", description=return_msg, color = color)
-        timeoutembed = discord.Embed(title = player.username + "'s Weight", description=short_return_msg, color = color,)
-        timeoutembed.set_footer(text="Timed Out")
-        t1 = time.perf_counter()
-
-        #Timing data for bot owner
-        if timing:
-            await channel.send(f"The request to the Hypixel API took {result['get']} seconds.\nProcessing the data took {result['proc']} seconds.\nThe response message took {round(t1-t0,7)} seconds to generate and send.")
-
-
-        #Reaction processing
-        if expanded:
-            await channel.send(embed=embed)
-        else:
-            newmessage = await channel.send(embed=shortembed)
-            await newmessage.add_reaction('⬇️')
-            expobj = ExpandableResponse(shortembed, embed, timeoutembed)
-            self.expand.append([newmessage, author.id, expobj, time.time()])
-        return
-
-#------------------------------------------------------------------------    Skyblock GUILD/EVENT functions    ------------------------------------------------------------------------
-
-    async def CMD_glbreturnmsg(self, channel, resp):
-        #Skyblock:Guild Leaderboard - Return messages generation
-        return_msg = '```yaml\n'
-        totalweight = 0
-        messages = []
-        for i, memb in enumerate(resp):
-            if memb[0] == 'DaddyCVFhyum':
-                return_msg += f"{i+1}: DaddyCVFhyum lol what a loser\n"
-            elif len(memb) == 3:
-                return_msg += f"{i+1}: {memb[0]} - {memb[1]} ({memb[2]})\n"
-                totalweight += memb[1]
-            else:
-                return_msg += f"{i+1}: {memb[0]} - {memb[1]}\n"
-                totalweight += memb[1]
-
-            if i%15==14:
-                return_msg += '```'
-                embed = discord.Embed(description = return_msg)
-                messages.append( await channel.send(embed=embed) )
-                await asyncio.sleep(0.3)
-                return_msg = '```yaml\n'
-        if return_msg != "```yaml\n":
-            return_msg += '```'
-            embed = discord.Embed(description = return_msg)
-            messages.append( await channel.send(embed=embed) )
-        averageembed = discord.Embed(title = "Average guild weight", description = f"```fix\nThe average guild weight is {totalweight/len(resp):.6}.\n```")
-        messages.append( await channel.send(embed=averageembed) )
-        return messages
-
-    async def CMD_guildleaderboard(self, message):
-        args = message.content.split(' ')
-        if len(args) < 2:
-            await message.channel.send("Please specify a guild.")
-            return
-
-        #API call
-        guildname = args[1]
-        guild = getguild(guildname)
-        resp = await guild.getweights(self.reqsession)
-        await self.CMD_glbreturnmsg(message.channel, resp)
-        return
-
-    async def CMD_Skyblock_glb_loop_command(self, message):
-        """
-        Message format: at!loopglb [start] <guild_name> <interval = 1h>
-        """
-        args = message.content.split(' ')
-        subcommand = args[1]
-
-        #Stop subcommand
-        if subcommand == 'stop':
-            self.glbtasks[message.guild.id]['status'] = -1
-            await message.channel.send("The task should be stopping soon.")
-            return
-
-        #Handling arugments
-        if len(args) < 3:
-            await message.channel.send("Not enough arguments. at!loopglb start <guild name> [interval]")
-            return
-        guildname = args[2]
-        try:
-            time = timetosec(args[3])
-        except IndexError:
-            time = 3600
-        if time < 1200:
-            await message.channel.send("The interval is too short.")
-            return
-
-        #Check if there is another running task
-        if message.guild.id in self.glbtasks.keys():
-            await message.channel.send("Another task in progress in this server. Please stop the previous task with `at!stop` before starting this one.")
-            return
-
-        task = asyncio.create_task(self.Func_Skyblock_glb_loop_task(message.channel, guildname, time))
-        self.glbtasks[message.guild.id] = {"status":0, "task":task}
-        await message.channel.send("Task created.")
-
-    async def Func_Skyblock_glb_loop_task(self, channel, guildname, interval):
-
-        #Init
-        lastupdate = time.time()
-        msgtodelete = []
-        guild = getguild(guildname)
-
-        #Loop
-        while self.glbtasks[channel.guild.id]['status'] == 0:
-            resp = await guild.getweights(self.reqsession)
-            for msg in msgtodelete:
-                try:
-                    await msg.delete()
-                except:
-                    pass
-            msgtodelete = await self.CMD_glbreturnmsg(channel, resp)
-            lastupdate = time.time()
-
-            while self.glbtasks[channel.guild.id]['status'] == 0 and time.time() - lastupdate < interval:
-                await asyncio.sleep(1)
-
-        self.glbtasks.pop(channel.guild.id)
-        await channel.send("Task exited")
-
-    async def CMD_Skyblock_event(self, message):
-        #subcommands: list, start, end, restart
-        #defaults to list if not specified
-        args = message.content.split(' ')
-        if len(args)==1 or args[1] in ('list','l'):
-            eventlist = self.eventmanager.list()
-            message.channel.send(eventlist)
         
