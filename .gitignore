@@ -6,3 +6,6 @@
 
 #Log files
 .log
+
+#Quarry
+modules/quarry-messenger/

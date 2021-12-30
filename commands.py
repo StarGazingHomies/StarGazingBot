@@ -341,88 +341,89 @@ class Listener(object):
                     if match == message.content and position == message.channel.id:
                         await result
 
-        # Existing server
-        if message.content.startswith(pfx):
+        # Existing server - ignore all messages that does not start with prefix
+        if not message.content.startswith(pfx):
+            return
 
-            # Get command
-            command = self.get_command(message)
+        # Everything that isn't a command is now filtered out.
+        command = self.get_command(message)
 
-            if not command:
-                # Command not found
-                return
+        if not command:
+            # Command not found
+            return
 
-            p = self.check_perms(message, command)
-            if p == 0:
-                # Not enough permissions
-                logger.info("{message.author} does not have enough permission to execute {command}.")
-                await message.channel.send(embed=discord.Embed(title="You can't use this command!",
-                                                               description="If you think this is an error, please \
-                                                                           contact a staff member.",
-                                                               colour=discord.Colour.red()))
-                return
+        p = self.check_perms(message, command)
+        if p == 0:
+            # Not enough permissions
+            logger.info("{message.author} does not have enough permission to execute {command}.")
+            await message.channel.send(embed=discord.Embed(title="You can't use this command!",
+                                                           description="If you think this is an error, please \
+                                                                       contact a staff member.",
+                                                           colour=discord.Colour.red()))
+            return
 
-            # Check cooldown
-            if p != 2:
-                try:
-                    cooldown_type = command['cooldown']
-                    logger.debug(f"The cooldown type of command {command} has been identified as {cooldown_type}.")
-                    if cooldown_type == 0:
-                        time_since_last = time.time() - self.cooldown[message.author.id]['last']
-                        if time_since_last < 10 and p <= 1:
-                            too_fast = f"""You are sending commands too fast!"
-                            Please wait {round(10-time_since_last,2)} seconds before trying again."""
-                            logger.info(f"{message.author} is sending commands too fast.")
+        # Check cooldown
+        if p != 2:
+            try:
+                cooldown_type = command['cooldown']
+                logger.debug(f"The cooldown type of command {command} has been identified as {cooldown_type}.")
+                if cooldown_type == 0:
+                    time_since_last = time.time() - self.cooldown[message.author.id]['last']
+                    if time_since_last < 10 and p <= 1:
+                        too_fast = f"""You are sending commands too fast!"
+                        Please wait {round(10-time_since_last,2)} seconds before trying again."""
+                        logger.info(f"{message.author} is sending commands too fast.")
+                        await message.channel.send(embed=discord.Embed(title="Please chill!",
+                                                                       description=too_fast,
+                                                                       colour=discord.Colour.orange()))
+                        # Sending commands too fast removes points
+                        self.tracker.remove_points(message.guild.id, message.author.id, 15)
+                        return
+
+                    self.cooldown[message.author.id]['last'] = time.time()
+                else:
+                    try:
+                        time_since_last = time.time() - self.cooldown[message.author.id][command['commonname']]
+                        if time_since_last < cooldown_type:
+                            logger.info(f"{message.author} is sending the command {command} too fast.")
+                            too_fast = f"You are sending commands too fast!\n\
+                            Please wait {sec_to_time(cooldown_type - time_since_last, short=False)} before retrying"
                             await message.channel.send(embed=discord.Embed(title="Please chill!",
                                                                            description=too_fast,
                                                                            colour=discord.Colour.orange()))
                             # Sending commands too fast removes points
                             self.tracker.remove_points(message.guild.id, message.author.id, 15)
                             return
-                        
-                        self.cooldown[message.author.id]['last'] = time.time()
-                    else:
-                        try:
-                            time_since_last = time.time() - self.cooldown[message.author.id][command['commonname']]
-                            if time_since_last < cooldown_type:
-                                logger.info(f"{message.author} is sending the command {command} too fast.")
-                                too_fast = f"You are sending commands too fast!\n\
-                                Please wait {sec_to_time(cooldown_type - time_since_last, short=False)} before retrying"
-                                await message.channel.send(embed=discord.Embed(title="Please chill!",
-                                                                               description=too_fast,
-                                                                               colour=discord.Colour.orange()))
-                                # Sending commands too fast removes points
-                                self.tracker.remove_points(message.guild.id, message.author.id, 15)
-                                return
-                        except KeyError:
-                            # Setup cooldown for cmd specific
-                            self.cooldown[message.author.id] = {command['commonname']: time.time()}
-                except KeyError:
-                    # Since bot restart, the author has not sent any commands! So no cooldown, yay!
-                    self.cooldown[message.author.id] = {'last': time.time()}
-            
-            # Find command
-            try:
-                # Result should return dict containing status
-                # 0 = good exec
-                # 1 = good exec, do something now
-                if command['namespace'] is None:
-                    result = await eval(f"self.{command['exec']}(message)")
-                else:
-                    result = await eval(f"self.listeners['{command['namespace']}'].{command['exec']}(message)")
+                    except KeyError:
+                        # Setup cooldown for cmd specific
+                        self.cooldown[message.author.id] = {command['commonname']: time.time()}
+            except KeyError:
+                # Since bot restart, the author has not sent any commands! So no cooldown, yay!
+                self.cooldown[message.author.id] = {'last': time.time()}
 
-                if not result:
-                    return
-                if result['status'] == 1:
-                    if 'add' in result:
-                        if result['add'] == 'scroll':
-                            for r in ('⏪', '◀', '▶', '⏩', chr(128256)):
-                                await result['msg'].add_reaction(r)
-                            await result['msg'].edit(**result['obj'].msgget())
-                            self.scroll.append([result['msg'], message.author.id, result['obj'], time.time()])
+        # Find command
+        try:
+            # Result should return dict containing status
+            # 0 = good exec
+            # 1 = good exec, do something now
+            if command['namespace'] is None:
+                result = await eval(f"self.{command['exec']}(message)")
+            else:
+                result = await eval(f"self.listeners['{command['namespace']}'].{command['exec']}(message)")
 
-            except Exception as e:
-                raise e
-            return
+            if not result:
+                return
+            if result['status'] == 1:
+                if 'add' in result:
+                    if result['add'] == 'scroll':
+                        for r in ('⏪', '◀', '▶', '⏩', chr(128256)):
+                            await result['msg'].add_reaction(r)
+                        await result['msg'].edit(**result['obj'].msgget())
+                        self.scroll.append([result['msg'], message.author.id, result['obj'], time.time()])
+
+        except Exception as e:
+            raise e
+        return
 
     async def on_reaction(self, reaction, user):
         # Handling reactions by checking if it is looking for one.
