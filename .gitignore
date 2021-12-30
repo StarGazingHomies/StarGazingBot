@@ -8,9 +8,9 @@
 .log
 
 #Settings, logs, events, and interactions folders
-settings/servers
-logs
-interactions
-events
-cache
-userdata
+/settings/servers
+/logs
+/interactions
+/events
+/cache
+/userdata
