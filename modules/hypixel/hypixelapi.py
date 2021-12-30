@@ -1,13 +1,11 @@
-import sys, os, stat, time
-import yaml
 import asyncio, aiohttp
-import warnings
 import json
 import logging
 
 logger = logging.getLogger('hypixel.hypixelapi')
 
-#All methods are asynchrnous since this is a web application... no?... kinda?
+# All methods are asynchronous since this is a web application... no?... kinda?
+
 
 async def aiorequest(session, url, convert=True, *args, **kwargs):
     logger.debug(f"Sending a GET request to {url}.")
@@ -20,7 +18,7 @@ async def aiorequest(session, url, convert=True, *args, **kwargs):
         await asyncio.sleep(1)
     if resp.status != 200:
         logger.warning(f"Multiple errorneous responses from {url}, will return empty object instead.")
-    #Convert to json?
+    # Convert to json?
     if convert:
         d = json.loads(d)
     return d

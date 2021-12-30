@@ -3,6 +3,7 @@ Basic functions that use no imports.
 Their job is simply to make everything look nicer.
 """
 
+
 def simplify_username(username):
     """Simplifies a username since some people may mistype."""
     result = ''
@@ -14,8 +15,8 @@ def simplify_username(username):
             result += c
     return result
 
-#time conversion
 
+# Time conversion
 def time_to_sec(t):
     """Converts an intuitive representation of time to seconds."""
     if t[-1] == 's':
@@ -29,6 +30,7 @@ def time_to_sec(t):
     if t[-1] == 'w':
         return 604200 * int(t[:-1])
     return -1
+
 
 def sec_to_time(s, short=True):
     """Converts the amount of seconds to a more intuitive unit (days/hours/minutes)."""
@@ -51,8 +53,8 @@ def sec_to_time(s, short=True):
         return f"{round(s/86400,2)} days"
     return f"{round(s/86400/7,2)} weeks"
 
-#More appealing numbers
 
+# More appealing numbers
 def pretty_num(i, sep=','):
     """Prettifies a number by inserting a comma every 3 digits."""
     stri = str(i)
@@ -61,6 +63,7 @@ def pretty_num(i, sep=','):
         stri = stri[:i] + sep + stri[i:]
         i -= 3 + len(sep)
     return stri
+
 
 def rank_n(i):
     """Adds the "th" at the end of numbers."""
@@ -75,8 +78,8 @@ def rank_n(i):
         return stri+"rd"
     return stri+"th"
 
-#More appealing strings
 
+# More appealing strings
 def normalize_caps(string):
     """Normalize the capital letters in a string"""
     parts = string.split(' ')

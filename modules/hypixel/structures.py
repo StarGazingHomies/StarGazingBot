@@ -50,10 +50,10 @@ class WeightedSkill(UnweightedSkill):
     def __init__(self, stype, value=0, vtype='exp'):
         if not Skills.validate(stype):
             raise ValueError("Please indicate a valid skill name.")
-        self._basew, self._ovfw = Skills.weight(self.type, self._exp, self._level)
-        self._totw = self._basew + self._ovfw
         super().__init__(value, vtype)
         self._type = stype.lower()
+        self._basew, self._ovfw = Skills.weight(self.type, self._exp, self._level)
+        self._totw = self._basew + self._ovfw
         self.update()
 
     def __repr__(self):
@@ -193,12 +193,12 @@ class WeightedDungeon(UnweightedDungeon):
     __slots__ = ('_type', '_totw', '_basew', '_ovfw')
 
     def __init__(self, stype, *args, **kwargs):
-        self._basew, self._ovfw = Dungeons.weight(self.type, self._exp, self._level)
-        self._totw = self._basew + self._ovfw
         if not Dungeons.validate(stype):
             raise ValueError("Please indicate a valid skill name.")
         super().__init__(*args, **kwargs)
         self._type = stype.lower()
+        self._basew, self._ovfw = Dungeons.weight(self.type, self._exp, self._level)
+        self._totw = self._basew + self._ovfw
         self.update()
 
     def __repr__(self):

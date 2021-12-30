@@ -18,13 +18,15 @@ import time
 
 from membermanager import UserManager
 from serversettings import GetSettingsManager as SettingsManager
-from event import CLS_EventFileHandler as EventManager
+# These two will be moved to their dedicated modules soontm
 from modules.dnd.roll import calculate as rolldice
-from modules.hypixel.player import Player
-from modules.hypixel.guild import getguild
 import modules.minecraft.mojangapi as mojangapi
+# Response objects for common reactions
 from structures import PagedResponse, ExpandableResponse, VerifyResponse
+# This imports all modules designated by the __init__ file in commands folder
 import command
+# Quality of Life Functions
+from func import sec_to_time
 
 SKYBLOCK_DICT = yaml.load(open("skyblock_constants.yaml", "r"), Loader=yaml.FullLoader)
 
@@ -35,58 +37,9 @@ NAMESPACEMAP = yaml.safe_load(open(os.path.join(cmdinfopath, "namespacealias.yam
 
 logger = logging.getLogger('commands')
 
-# Quality of Life Functions
-
-
-def betternum(i, sep=','):
-    stri = str(i)
-    i = -3
-    while i > -len(stri):
-        stri = stri[:i] + sep + stri[i:]
-        i -= 3 + len(sep)
-    return stri
-
-
-def timetosec(t):
-    if t[-1] == 's':
-        return int(t[:-1])
-    elif t[-1] == 'm':
-        return 60 * int(t[:-1])
-    elif t[-1] == 'h':
-        return 3600 * int(t[:-1])
-    elif t[-1] == 'd':
-        return 86400 * int(t[:-1])
-    elif t[-1] == 'w':
-        return 604200 * int(t[:-1])
-    else:
-        return -1
-
-
-def sec_to_time(s, short=True):
-    if s < 0:
-        return "<0 seconds"
-    responses = ("ms", "s", "m", "h", "d", "w")
-    if not short:
-        responses = (" milliseconds", " seconds", " minutes", " hours", " days", " weeks")
-    if s < 0.001:
-        return "<1 ms"
-    elif s < 1:
-        return f"{round(s*1000,2)}{responses[0]}"
-    elif s < 60:
-        return f"{round(s,2)}{responses[1]}"
-    elif s < 3600:
-        return f"{int(s//60)}{responses[2]}, {round(s%60,2)}{responses[1]}"
-    elif s < 86400:
-        return f"{int(s//3600)}{responses[3]}, {s%3600//60}{responses[2]}, {round(s%60,2)}{responses[1]}"
-    elif s < 86400*7:
-        return f"{round(s/86400,2)}{responses[4]}"
-    else:
-        return f"{round(s/86400/7,2)}{responses[5]}"
 
 # Handler Object
 # Method that listens to Discord messages, and checks for reactions/follow up msgs.
-
-
 class Listener(object):
     def __init__(self, client):
         self.version = "Version: 1w6a"                                                      # Version
@@ -95,7 +48,6 @@ class Listener(object):
         self.reqsession = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20))    # Client for requests
         self.usermanager = UserManager()                                                    # User manager
         self.settingsmanager = SettingsManager()                                            # Settings manager
-        self.eventmanager = EventManager()
 
         # Listeners
         self.listeners = {}
@@ -420,6 +372,12 @@ class Listener(object):
                             await result['msg'].add_reaction(r)
                         await result['msg'].edit(**result['obj'].msgget())
                         self.scroll.append([result['msg'], message.author.id, result['obj'], time.time()])
+
+                    if result['add'] == 'expand':
+                        await result['msg'].add_reaction('⬇️')
+                        if not 'author' in result:
+                            result['author'] = message.author.id
+                        self.expand.append([result['msg'], result['author'], result['obj'], time.time()])
 
         except Exception as e:
             raise e
@@ -1360,278 +1318,4 @@ If you want to add any extra information, you can provide it here.""",
             await message.channel.send("An error occured. Please try again later.")
         await message.channel.send(f"The username of {uuid} is {result}.")
 
-    async def CMD_Skyblock_getstats(self, message, limited=3):
-        """Returns all basic Skyblock stats, such as skills, slayers, and dungeon levels.
-Usage: `at!getstats [username]`
-Cooldown: 10s"""
-        # Parse command
-        args = message.content.split(' ')
-        color = discord.Colour.blue()
-        if len(args) >= 2:
-            identifier = args[1]
-        else:
-            try:
-                identifier = message.author.nick.split('|')[-1]
-            except AttributeError:
-                identifier = message.author.name
-
-        #Hypixel API request
-        player = Player(self.reqsession, identifier)
-        result = await player.parse_skyblock(self.reqsession)
-
-        #If no profile
-        if result['status'] == -1:
-            embed = discord.Embed(title=f"{player.username} has no skyblock profiles!", colour=discord.Colour.red())
-            embed.set_footer(text="If you believe this is an error, please report.")
-            await message.channel.send(embed=embed)
-            return
-        if result['status'] == -2:
-            embed = discord.Embed(title=f"{identifier} does not exist!", colour=discord.Colour.red())
-            embed.set_footer(text="If you believe this is an error, please report.")
-            await message.channel.send(embed=embed)
-            return
-
-        t0 = time.perf_counter()
-        #Generate return message
-        return_msg = f"\n**Skill levels:**\n{player.username} has a skill average of **{player.skill_avg:.4}**```elm\n"
-        short_return_msg = f"\n**Skill levels:**\n{player.username} has a skill average of **{player.skill_avg:.4}**\n"
-        short_return_msg += f"**Slayer xp:** \n{player.username} has **{betternum(player.slayer_total)}** total slayer experience\n"
-        short_return_msg += f"**Catacombs:**\n{player.username} has a catacombs level of **{round(player.dungeons['catacombs'].level,2)}**\n"
-        #Skills
-        for skill in SKYBLOCK_DICT["SKILLNAMES"]:
-            lvl = player.skills[skill].level
-            return_msg += f"{skill}{' '*(11-len(skill))}> {round(lvl, 2)}\n"
-        #Slayer
-        return_msg += f"```\n**Slayer xp:** \n{player.username} has **{betternum(player.slayer_total)}** total slayer experience\n```elm\n"
-        for slayer in SKYBLOCK_DICT["SLAYERS"]:
-            xp = player.slayers[slayer].exp
-            return_msg += f"{slayer}{' '*(11-len(slayer))}> {betternum(xp)}\n"
-        return_msg += "```\n**Dungeon levels:** \n```elm\n"
-        #Dungeons
-        for dungstat in SKYBLOCK_DICT["DUNGEONS"]:
-            lvl = player.dungeons[dungstat].level
-            return_msg += f"{dungstat}{' '*(11-len(dungstat))}> {round(lvl, 2)}\n"
-        #Dungeon Classes
-        for dungstat in SKYBLOCK_DICT["CLASSES"]:
-            lvl = player.dungeons[dungstat].level
-            return_msg += f"{dungstat}{' '*(11-len(dungstat))}> {round(lvl, 2)}\n"
-        return_msg += "```"
-        #Embeds
-        shortembed = discord.Embed(title = player.username + "'s Stats", description=short_return_msg, color = color)
-        shortembed.set_footer(text="React with ⬇️to show details")
-        embed = discord.Embed(title = player.username + "'s Stats", description=return_msg, color = color)
-        timeoutembed = discord.Embed(title = player.username + "'s Stats", description=short_return_msg, color = color)
-        timeoutembed.set_footer(text="Timed Out")
-        newmessage = await message.channel.send(embed=shortembed)
-        await newmessage.add_reaction('⬇️')
-        t1 = time.perf_counter()
-
-        #Timing data for bot owner
-        if message.author.id == 523717630972919809:
-            await message.channel.send(f"The request to the Hypixel API took {result['get']} seconds.\nProcessing the data took {result['proc']} seconds.\nThe response message took {round(t1-t0,7)} seconds to generate and send.")
-
-        #Reaction processing
-        expobj = ExpandableResponse(shortembed, embed, timeoutembed)
-        self.expand.append([newmessage, message.author.id, expobj, time.time()])
-        return
-
-    async def CMD_Skyblock_getweight(self, message, limited=3):
-        """
-Returns the weight of the given user.
-message: discord.Message object"""
-        #Parse command
-        args = message.content.split(' ')
-        if len(args) >= 2:
-            identifier = args[1]
-        else:
-            try:
-                identifier = message.author.nick.split('|')[-1].replace(' ','')
-            except AttributeError:
-                identifier = message.author.name
-
-        await self.Skyblock_weightdisp(message.author, message.channel, identifier, timing = (message.author.id == 523717630972919809))
-
-    async def Skyblock_weightdisp(self, author, channel, identifier, expanded=False, timing=False):
-        color = discord.Colour.blue()
-        #Hypixel API request
-        player = Player(self.reqsession, identifier)
-        result = await player.parse_all(self.reqsession)
-
-        #If no profile
-        if result['status'] == -1:
-            embed = discord.Embed(title=f"{player.username} has no skyblock profiles!", colour=discord.Colour.red())
-            embed.set_footer(text="If you believe this is an error, please report.")
-            await channel.send(embed=embed)
-            return
-        if result['status'] == -2:
-            embed = discord.Embed(title=f"{identifier} does not exist!", colour=discord.Colour.red())
-            embed.set_footer(text="If you believe this is an error, please report.")
-            await channel.send(embed=embed)
-            return
-
-        t0 = time.perf_counter()
-        #Generate long msg
-        return_msg = f"[{player.rank}] {player.username} has a weight of {round(player.totalweight,3)} ({round(player.weight[0],3)} + {round(player.weight[1],3)} overflow)\n\n**Skills weight:** \n```elm\n"
-        short_return_msg = f"[{player.rank}] {player.username} has a weight of {round(player.totalweight,3)} ({round(player.weight[0],3)} + {round(player.weight[1],3)} overflow)"
-        #Skills
-        for skill in player.skills.values():
-            weight = skill.weights
-            lvl = round(skill.level,2)
-            if weight[1] != 0:
-                return_msg += f"{skill.type}{' '*(11-len(skill.type))}> lvl: {lvl}{' '*(8-len(str(lvl)))}> weight: {round(weight[0],2)} + {round(weight[1],2)} overflow\n"
-            else:
-                return_msg += f"{skill.type}{' '*(11-len(skill.type))}> lvl: {lvl}{' '*(8-len(str(lvl)))}> weight: {round(weight[0],2)}\n"
-        #Slayers
-        return_msg += "```\n**Slayer weight:** \n```elm\n"
-        for slayer in player.slayers.values():
-            weight = slayer.weights
-            xp = slayer.exp
-            if weight[1] != 0:
-                return_msg += f"{slayer.type}{' '*(11-len(slayer.type))}> xp: {xp}{' '*(9-len(str(xp)))}> weight: {round(weight[0],2)} + {round(weight[1],2)} overflow\n"
-            else:
-                return_msg += f"{slayer.type}{' '*(11-len(slayer.type))}> xp: {xp}{' '*(9-len(str(xp)))}> weight: {round(weight[0],2)}\n"
-        #Dungeons
-        return_msg += "```\n**Dungeon weight:** \n```elm\n"
-        for dungstat in player.dungeons.values():
-            weight = dungstat.weights
-            lvl = round(dungstat.level,2)
-            if weight[1] != 0:
-                return_msg += f"{dungstat.type}{' '*(11-len(dungstat.type))}> lvl: {lvl}{' '*(8-len(str(lvl)))}> weight: {round(weight[0],2)} + {round(weight[1],2)} overflow\n"
-            else:
-                return_msg += f"{dungstat.type}{' '*(11-len(dungstat.type))}> lvl: {lvl}{' '*(8-len(str(lvl)))}> weight: {round(weight[0],2)}\n"
-        return_msg += "```"
-
-        #discord.Embed objects for reaction
-        shortembed = discord.Embed(title = player.username + "'s Weight", description=short_return_msg, color = color)
-        shortembed.set_footer(text="React with ⬇️to show details")
-        embed = discord.Embed(title = player.username + "'s Weight", description=return_msg, color = color)
-        timeoutembed = discord.Embed(title = player.username + "'s Weight", description=short_return_msg, color = color,)
-        timeoutembed.set_footer(text="Timed Out")
-        t1 = time.perf_counter()
-
-        #Timing data for bot owner
-        if timing:
-            await channel.send(f"The request to the Hypixel API took {result['get']} seconds.\nProcessing the data took {result['proc']} seconds.\nThe response message took {round(t1-t0,7)} seconds to generate and send.")
-
-
-        #Reaction processing
-        if expanded:
-            await channel.send(embed=embed)
-        else:
-            newmessage = await channel.send(embed=shortembed)
-            await newmessage.add_reaction('⬇️')
-            expobj = ExpandableResponse(shortembed, embed, timeoutembed)
-            self.expand.append([newmessage, author.id, expobj, time.time()])
-        return
-
-#------------------------------------------------------------------------    Skyblock GUILD/EVENT functions    ------------------------------------------------------------------------
-
-    async def CMD_glbreturnmsg(self, channel, resp):
-        #Skyblock:Guild Leaderboard - Return messages generation
-        return_msg = '```yaml\n'
-        totalweight = 0
-        messages = []
-        for i, memb in enumerate(resp):
-            if memb[0] == 'DaddyCVFhyum':
-                return_msg += f"{i+1}: DaddyCVFhyum lol what a loser\n"
-            elif len(memb) == 3:
-                return_msg += f"{i+1}: {memb[0]} - {memb[1]} ({memb[2]})\n"
-                totalweight += memb[1]
-            else:
-                return_msg += f"{i+1}: {memb[0]} - {memb[1]}\n"
-                totalweight += memb[1]
-
-            if i%15==14:
-                return_msg += '```'
-                embed = discord.Embed(description = return_msg)
-                messages.append( await channel.send(embed=embed) )
-                await asyncio.sleep(0.3)
-                return_msg = '```yaml\n'
-        if return_msg != "```yaml\n":
-            return_msg += '```'
-            embed = discord.Embed(description = return_msg)
-            messages.append( await channel.send(embed=embed) )
-        averageembed = discord.Embed(title = "Average guild weight", description = f"```fix\nThe average guild weight is {totalweight/len(resp):.6}.\n```")
-        messages.append( await channel.send(embed=averageembed) )
-        return messages
-
-    async def CMD_guildleaderboard(self, message):
-        args = message.content.split(' ')
-        if len(args) < 2:
-            await message.channel.send("Please specify a guild.")
-            return
-
-        #API call
-        guildname = args[1]
-        guild = getguild(guildname)
-        resp = await guild.getweights(self.reqsession)
-        await self.CMD_glbreturnmsg(message.channel, resp)
-        return
-
-    async def CMD_Skyblock_glb_loop_command(self, message):
-        """
-        Message format: at!loopglb [start] <guild_name> <interval = 1h>
-        """
-        args = message.content.split(' ')
-        subcommand = args[1]
-
-        #Stop subcommand
-        if subcommand == 'stop':
-            self.glbtasks[message.guild.id]['status'] = -1
-            await message.channel.send("The task should be stopping soon.")
-            return
-
-        #Handling arugments
-        if len(args) < 3:
-            await message.channel.send("Not enough arguments. at!loopglb start <guild name> [interval]")
-            return
-        guildname = args[2]
-        try:
-            time = timetosec(args[3])
-        except IndexError:
-            time = 3600
-        if time < 1200:
-            await message.channel.send("The interval is too short.")
-            return
-
-        #Check if there is another running task
-        if message.guild.id in self.glbtasks.keys():
-            await message.channel.send("Another task in progress in this server. Please stop the previous task with `at!stop` before starting this one.")
-            return
-
-        task = asyncio.create_task(self.Func_Skyblock_glb_loop_task(message.channel, guildname, time))
-        self.glbtasks[message.guild.id] = {"status":0, "task":task}
-        await message.channel.send("Task created.")
-
-    async def Func_Skyblock_glb_loop_task(self, channel, guildname, interval):
-
-        #Init
-        lastupdate = time.time()
-        msgtodelete = []
-        guild = getguild(guildname)
-
-        #Loop
-        while self.glbtasks[channel.guild.id]['status'] == 0:
-            resp = await guild.getweights(self.reqsession)
-            for msg in msgtodelete:
-                try:
-                    await msg.delete()
-                except:
-                    pass
-            msgtodelete = await self.CMD_glbreturnmsg(channel, resp)
-            lastupdate = time.time()
-
-            while self.glbtasks[channel.guild.id]['status'] == 0 and time.time() - lastupdate < interval:
-                await asyncio.sleep(1)
-
-        self.glbtasks.pop(channel.guild.id)
-        await channel.send("Task exited")
-
-    async def CMD_Skyblock_event(self, message):
-        #subcommands: list, start, end, restart
-        #defaults to list if not specified
-        args = message.content.split(' ')
-        if len(args)==1 or args[1] in ('list','l'):
-            eventlist = self.eventmanager.list()
-            message.channel.send(eventlist)
         
