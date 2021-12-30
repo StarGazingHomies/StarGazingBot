@@ -7,5 +7,10 @@
 #Log files
 .log
 
-#Quarry
-modules/quarry-messenger/
+#Settings, logs, events, and interactions folders
+settings/servers
+logs
+interactions
+events
+cache
+userdata

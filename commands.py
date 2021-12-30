@@ -810,24 +810,24 @@ Made by StarGazingHomies#0001, hosted by CVFhyum#0001.
             pass
 
     async def CMD_server_settings(self, message):
-        #Server Settings (config)
+        # Server Settings (config)
 
         args = message.content.split(' ')
         if len(args) >= 3:
-            #Specific setting
+            # Specific setting
             setting = args[1].lower()
             value = args[2]
             prefix = self.settingsmanager.server_get(message.guild.id, 'prefix')
 
-            #Try to convert to None
+            # Try to convert to None
             if value.lower() == 'none':
                 value = None
-            #Try to convert to bool
-            elif value.lower() in ('n','no','false'):
+            # Try to convert to bool
+            elif value.lower() in ('n', 'no', 'false'):
                 value = False
-            elif value.lower() in ('y','yes','true'):
+            elif value.lower() in ('y', 'yes', 'true'):
                 value = True
-            #Handles people that use mentions instead of IDs >:(((
+            # Handles people that use mentions instead of IDs >:(((
             elif value.startswith('<'):
                 nv = 0
                 for char in value:
@@ -835,7 +835,7 @@ Made by StarGazingHomies#0001, hosted by CVFhyum#0001.
                         nv *= 10
                         nv += ord(char) - 48
                 value = nv
-            #Try to convert value to int
+            # Try to convert value to int
             else:
                 try:
                     value = int(value)
@@ -844,7 +844,7 @@ Made by StarGazingHomies#0001, hosted by CVFhyum#0001.
 
             result = await self.settingsmanager.server_edit(message.guild, setting, value)
 
-            #Result handling
+            # Result handling
             if result == -1:
                 await message.channel.send("No matching setting was found.")
             elif result == -2:
@@ -859,34 +859,33 @@ Made by StarGazingHomies#0001, hosted by CVFhyum#0001.
                 await message.channel.send(f"The setting {setting} is changed to {value}.")
 
         elif len(args) == 2:
-            #Get help message
+            # Get help message
             setting = args[1]
             try:
-                helpmsg = self.settingsmanager.help_get(setting)
+                help_message = self.settingsmanager.help_get(setting)
             except FileNotFoundError:
                 await message.channel.send("Such a setting does not exist!")
                 return
 
-            #Generate embed and send
+            # Generate embed and send
             prefix = self.settingsmanager.server_get(message.guild.id, 'prefix')
-            embed = discord.Embed(title=setting, description=helpmsg.format(prefix=prefix))
+            embed = discord.Embed(title=setting, description=help_message.format(prefix=prefix))
             await message.channel.send(embed=embed)
             return
 
         elif len(args) == 1:
-            #Generate pages when there are more settings. Right now, it isn't necessary.
+            # Generate pages when there are more settings. Right now, it isn't necessary.
             settings = self.settingsmanager.server_get(message.guild.id)
             embed = discord.Embed(title="Server settings",colour=discord.Colour.purple())
             for setting, val in settings.items():
-                if setting in ('id'):
+                if setting in ('id', ):
                     continue
-#                capitalizedsetting = setting[0].upper() + setting[1:].lower()
                 embed.add_field(name=setting, value=str(val), inline=False)
             await message.channel.send(embed=embed)
 
     async def CMD_prefix(self, message):
-        #Alias to {prefix}settings prefix <prefix>
-        pfx = message.content[len(message.content.split(' ')[0])+1:]    #Stuff after first space
+        # Alias to {prefix}settings prefix <prefix>
+        pfx = message.content[len(message.content.split(' ')[0])+1:]    # Stuff after first space
         if ' ' in pfx:
             await message.channel.send("Spaces can't be in the prefix!")
             return
@@ -894,7 +893,7 @@ Made by StarGazingHomies#0001, hosted by CVFhyum#0001.
             if ord(char) >= 128:
                 await message.channel.send("Only characters, numbers, and common punctuation are available as prefixes.")
                 return
-        rtrn = self.settingsmanager.server_edit(message.guild.id, 'prefix', pfx)
+        self.settingsmanager.server_edit(message.guild.id, 'prefix', pfx)
         await message.channel.send("Prefix changed.")
 
     async def CMD_conditional(self, message):
