@@ -897,11 +897,11 @@ Made by StarGazingHomies#0001, hosted by CVFhyum#0001.
         await message.channel.send("Prefix changed.")
 
     async def CMD_conditional(self, message):
-        #Guided.
+        # Guided.
 
-        #Current types:
-        #reaction {message:msg, reaction:rctn}
-        #message {channel:chnl, message:msg}
+        # Current types:
+        # reaction {message:msg, reaction:rctn}
+        # message {channel:chnl, message:msg}
         pass
 
     async def CMD_perms(self, message):
