@@ -42,7 +42,7 @@ logger = logging.getLogger('commands')
 # Method that listens to Discord messages, and checks for reactions/follow up msgs.
 class Listener(object):
     def __init__(self, client):
-        self.version = "Version: 1w6a"                                                      # Version
+        self.version = "Version: 1w7a"                                                      # Version
         self.client = client                                                                # The bot client
         self.tracker = None                                                                 # Tracker for points
         self.reqsession = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20))    # Client for requests

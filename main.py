@@ -25,7 +25,7 @@ if __name__ == '__main__':
     TOKEN = config.get('token')
     API_KEY = config.get('api_key')
 
-    VERSION = '1w6a'
+    VERSION = '1w7a'
 
     # Logging
     SetupLoggers()
