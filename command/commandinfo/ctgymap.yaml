@@ -7,18 +7,19 @@ echo: General
 eval: Bot Owner
 event: WIP
 exec: Bot Owner
+featured: Manebooru
 getusername: Minecraft
 getuuid: Minecraft
 guildleaderboard: Skyblock
 help: General
 invite: General
 loopglb: Skyblock
-manebooru: Manebooru
 move: Staff
 nevermind: Bot Owner
 nick: Staff
 perms: General
 pets: WIP
+pick: Manebooru
 ping: General
 pingowner: Fun
 points: General
@@ -27,6 +28,7 @@ report: General
 reqs: WIP
 roll: Fun
 say: General
+search: Manebooru
 settings: WIP
 skills: WIP
 stats: Skyblock

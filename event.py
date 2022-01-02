@@ -1,7 +1,8 @@
 import os, sys
 import yaml
 
-#Changing event format since old bot
+# Changing event format since old bot
+# TODO: complete event file handler
 
 
 class CLS_EventFileHandler(object):

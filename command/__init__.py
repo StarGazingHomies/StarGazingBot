@@ -1,3 +1,5 @@
 import command.manebooru
 import command.hypixel
-__all__ = ['manebooru', 'hypixel']
+import command.conditional
+
+__all__ = ['manebooru.py', 'hypixel.py', 'conditional.py']

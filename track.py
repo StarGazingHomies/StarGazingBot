@@ -15,13 +15,14 @@ interactionspath = os.path.join(os.getcwd(), 'interactions')
 MATCHING = yaml.load(open(os.path.join(interactionspath, "matching.yaml")), yaml.FullLoader)
 CONTAIN = yaml.load(open(os.path.join(interactionspath, "contain.yaml")), yaml.FullLoader)
 
+
 class MemberWeight(object):
     def __init__(self):
-        self.path = os.path.join(os.getcwd(),'userdata')
+        self.path = os.path.join(os.getcwd(), 'userdata')
         self.memberpath = os.path.join(self.path, 'members')
         # Just in case I want to implement this. It's too slow for practical use though
-#        self.your_youre_check = LanguageTool('en-US')
-#        self.your_youre_check.enabled_rules = 'YOUR_YOU_RE'
+        #        self.your_youre_check = LanguageTool('en-US')
+        #        self.your_youre_check.enabled_rules = 'YOUR_YOU_RE'
         # Response cooldown so people can't spam the bot
         # Cooldown: 1200s, but no one should know this.
         self.matchingcd = {}
@@ -42,7 +43,7 @@ class MemberWeight(object):
 
     def __str__(self):
         return "A Listener of everything."
-    
+
     # Points modifications
     def add_points(self, serverid, userid, points):
         try:
@@ -51,11 +52,11 @@ class MemberWeight(object):
             try:
                 self.points[serverid][userid] = points
             except KeyError:
-                self.points[serverid] = {userid:points}
+                self.points[serverid] = {userid: points}
         self.ptchanges += 1
         if self.ptchanges >= self.ptautosave:
             self.ptchanges = 0
-            yaml.dump(self.points, open(os.path.join(self.path,'points.yaml'),"w"))
+            yaml.dump(self.points, open(os.path.join(self.path, 'points.yaml'), "w"))
 
     def remove_points(self, serverid, userid, points):
         try:
@@ -64,13 +65,13 @@ class MemberWeight(object):
             try:
                 self.points[serverid][userid] = -points
             except KeyError:
-                self.points[serverid] = {userid:-points}
+                self.points[serverid] = {userid: -points}
         if self.points[serverid][userid] < 0:
             self.points[serverid][userid] = 0
         self.ptchanges += 1
         if self.ptchanges >= self.ptautosave:
             self.ptchanges = 0
-            yaml.dump(self.points, open(os.path.join(self.path,'points.yaml'),"w"))
+            yaml.dump(self.points, open(os.path.join(self.path, 'points.yaml'), "w"))
 
     def get_points(self, serverid, userid):
         try:
@@ -83,9 +84,9 @@ class MemberWeight(object):
         try:
             self.points[serverid][userid] = points
         except KeyError:
-            self.points[serverid] = {userid:points}
+            self.points[serverid] = {userid: points}
         self.ptchanges = 0
-        yaml.dump(self.points, open(os.path.join(self.path,'points.yaml'),"w"))
+        yaml.dump(self.points, open(os.path.join(self.path, 'points.yaml'), "w"))
 
     # Points leaderboards
     def lbupdate(self):
@@ -109,7 +110,7 @@ class MemberWeight(object):
         if time.time() - self.ptlbupdate > self.ptlbupdatetime:
             self.lbupdate()
         return self.leaderboard[serverid]
-    
+
     # Discord
     async def on_message(self, message):
         if message.author.bot:
@@ -125,7 +126,6 @@ class MemberWeight(object):
             return
         authorid = message.author.id
 
-        
         # In all of a user's messages in a 75 seconds (since their first),
         # the amount of points will be determined by the maximum amount.
         try:
@@ -144,7 +144,7 @@ class MemberWeight(object):
 
             # If the new message has more points than the old one
             elif r > lastpoints:
-                self.add_points(serverid, authorid, r-lastpoints)
+                self.add_points(serverid, authorid, r - lastpoints)
                 self.lastmessage[serverid][authorid] = (lastmsgtime, message.content, r)
         except KeyError:
             try:
@@ -154,7 +154,6 @@ class MemberWeight(object):
                 self.lastmessage[serverid] = {}
                 self.lastmessage[serverid][authorid] = (time.time(), message.content, r)
 
-        
         # User-bot interactions are also included
         for i, matchresp in enumerate(MATCHING):
             vals, resps = matchresp
@@ -166,7 +165,7 @@ class MemberWeight(object):
                 pass
             for val in vals:
                 if message.content.lower() == val:
-                    await message.channel.send(resps[random.randint(0,len(resps)-1)])
+                    await message.channel.send(resps[random.randint(0, len(resps) - 1)])
                     self.matchingcd[i] = time.time()
                     break
 
@@ -180,7 +179,6 @@ class MemberWeight(object):
                 pass
             for val in vals:
                 if message.content.lower().count(val) >= 1:
-                    await message.channel.send(resps[random.randint(0, len(resps)-1)])
+                    await message.channel.send(resps[random.randint(0, len(resps) - 1)])
                     self.containcd[i] = time.time()
                     break
-    
