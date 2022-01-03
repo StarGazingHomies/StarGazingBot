@@ -47,7 +47,6 @@ minecraft_subcommands = {'start':
                               'permission': 5,
                               'cooldown': 0}
                          }
-# yaml.dump(MINECRAFTSUBCOMMANDS, open("mcsubcmds.yaml","w"))
 
 mojang_subcommands = {'getuuid':
                           {'exec': 'CMD_uuid',

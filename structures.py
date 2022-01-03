@@ -6,6 +6,15 @@ Most base/data modules will be defined here.
 from discord import Embed, Colour
 
 
+class ReactionResponse:
+    """The most basic response object to a reaction.
+"""
+    def __init__(self):
+        pass
+
+
+
+
 class PagedResponse(object):
     def __init__(self, title, pages, cur=0, colour=Colour.blue()):
         self.title = title

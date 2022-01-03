@@ -21,7 +21,6 @@ from modules.hypixel.player import Player
 from serversettings import GetSettingsManager as SettingsManager
 # These two will be moved to their dedicated modules soontm
 from modules.dnd.roll import calculate as rolldice
-import modules.minecraft.mojangapi as mojangapi
 # Response objects for common reactions
 from structures import VerifyResponse
 # This imports all modules designated by the __init__ file in commands folder
@@ -1175,6 +1174,7 @@ Please check with a server staff on which bot you should use to verify.")
         if not settings['apply']:
             await message.channel.send(
                 "Applications aren't enabled in this server! Perhaps you should use another bot?")
+            return
 
         try:
             apply_category = settings['applycategory']
@@ -1288,40 +1288,3 @@ If you want to add any extra information, you can provide it here.""",
 
         # Application set up, in-channel message
         await channel.send(embed=embed2)
-
-    # Skyblock functions
-
-    async def CMD_uuid(self, message):
-        """Get the uuid of a Minecraft user"""
-        args = message.content.split(' ')
-        if len(args) >= 2:
-            username = args[1]
-        else:
-            await message.channel.send("Please indicate a username to get the uuid of.")
-            return
-        kwargs = {}
-        if len(args) >= 3 and message.author.id == 523717630972919809:
-            for arg in args[2:]:
-                try:
-                    a, b = arg.split('=')
-                    kwargs[a] = b
-                except TypeError:
-                    await message.channel.send(f"Error in keyword argument {arg}.")
-        result = await mojangapi.getuuid(self.reqsession, username, **kwargs)
-        if not result:
-            await message.channel.send("An error occured. Please try again later.")
-        await message.channel.send(f"The uuid of {username} is {result}.")
-        return
-
-    async def CMD_username(self, message):
-        """Get the username of a Minecraft user."""
-        args = message.content.split(' ')
-        if len(args) >= 2:
-            uuid = args[1]
-        else:
-            await message.channel.send("Please indicate a uuid to get the username of.")
-            return
-        result = await mojangapi.getusername(self.reqsession, uuid)
-        if not result:
-            await message.channel.send("An error occured. Please try again later.")
-        await message.channel.send(f"The username of {uuid} is {result}.")
