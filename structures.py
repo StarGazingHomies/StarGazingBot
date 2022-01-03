@@ -51,7 +51,7 @@ class ExpandableResponse(object):
 class VerifyResponse(object):
     def __init__(self, message, nick_change):
         self.wait = Embed(title="User Verification",
-                          description="React with <a:animated_check:717397008922443846> to verify!",
+                          description="React with <a:check:927622044709969981> to verify!",
                           color=Colour.blue(), )
         self.timeout = Embed(title="Timed out!", color=Colour.red(), )
         self.success = Embed(title="User Verification",

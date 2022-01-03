@@ -395,12 +395,17 @@ class Listener(object):
             await asyncio.sleep(0.2)
 
         self.status = 3
-        await self.proc_reaction(reaction, user)
-        self.status = 1
+        try:
+            await self.proc_reaction(reaction, user)
+        except Exception as e:
+            self.status = 1
+            raise e
+        finally:
+            self.status = 1
 
     async def proc_reaction(self, reaction, user):
         """Process each reaction to see if they should trigger anything"""
-        logger.debug("Recieved reaction {reaction.emoji} to message {reaction.message.id} by user {user}.")
+        logger.debug("Received reaction {reaction.emoji} to message {reaction.message.id} by user {user}.")
 
         # Conditions
         conditionals = self.settingsmanager.server_get(reaction.message.guild.id, 'conditional')
@@ -459,12 +464,25 @@ class Listener(object):
             msg, uid, s, timestamp = self.verifyreact[i]
             if msg.id != reaction.message.id or uid != user.id:
                 continue
-            if reaction.emoji != '<a:animated_check:717397008922443846>':
+            if reaction.emoji != '<a:check:927622044709969981> ':
                 await reaction.message.edit(embed=s.success)
                 verified_role = self.settingsmanager.server_get(reaction.message.guild.id, 'verifiedrole')
                 role_obj = discord.Object(verified_role)
-                await user.add_roles(role_obj)
-                await user.edit(nick=s.nick_change)
+
+                # Give role
+                try:
+                    await user.add_roles(role_obj)
+                except discord.errors.Forbidden:
+                    await reaction.message.channel.send("The bot does not have permissions to verify you!\n\
+Please contact a staff member for help.")
+
+                # Change nick
+                try:
+                    await user.edit(nick=s.nick_change)
+                except discord.errors.Forbidden:
+                    # Changing nick is not necessary.
+                    pass
+
                 await reaction.message.delete(delay=0.1)
                 self.verifyreact.pop(i)
             else:
@@ -1144,7 +1162,7 @@ Please check with a server staff on which bot you should use to verify.")
 
         verify_obj = VerifyResponse(message, username)
         rmsg = await message.channel.send(embed=verify_obj.wait)
-        await rmsg.add_reaction('<a:animated_check:717397008922443846>')
+        await rmsg.add_reaction('<a:check:927622044709969981>')
 
         # Response proc
         self.verifyreact.append([rmsg, message.author.id, verify_obj, time.time()])
