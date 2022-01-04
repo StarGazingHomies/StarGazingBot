@@ -38,14 +38,22 @@ NAMESPACEMAP = yaml.safe_load(open(os.path.join(cmdinfopath, "namespacealias.yam
 logger = logging.getLogger('commands')
 
 
+# TODO: finish docstrings
 # Handler Object
 # Method that listens to Discord messages, and checks for reactions/follow up msgs.
 class Listener(object):
     def __init__(self, client):
+        """Initializes a Listener object for commands
+:param client: The Discord Bot Client
+:type client: discord.Client
+
+:rtype: Listener
+:return: the constructed listener object
+"""
         self.version = "Version: 1w7a"  # Version
         self.client = client  # The bot client
         self.tracker = None  # Tracker for points
-        self.reqsession = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20))  # Client for requests
+        self.req_session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20))  # Client for requests
         self.usermanager = UserManager()  # User manager
         self.settingsmanager = SettingsManager()  # Settings manager
 
@@ -72,12 +80,21 @@ class Listener(object):
         self.status = 0
 
     def __str__(self):
-        return "A Listener class, listening to all messages."
+        return "A Listener class for commands."
 
     #  Methods
 
     @staticmethod
     def get_command_from_submap(cmd, submap):
+        """Gets the command from a subcommand map
+:param cmd: The command string to match
+:type cmd: str
+:param submap: The subcommand map
+:type submap: dict
+
+:rtype: dict or bool
+:return: The command if found, and False if not.
+"""
         if cmd in submap:
             if 'alias' in submap[cmd]:
                 alias = submap[cmd]['alias']
@@ -86,6 +103,13 @@ class Listener(object):
         return False
 
     def get_command(self, message):
+        """Gets the command from a message
+:param message: The message to get a command from
+:type message: discord.Message
+
+:rtype: dict or bool
+:return: The command dict if found, else False
+"""
         if isinstance(message, str):
             # String input can only be from help module
             args = message.split(' ')
@@ -138,7 +162,13 @@ class Listener(object):
         return None
 
     def get_perms(self, message):
-        """Gets the permissions for the given author of the message."""
+        """Gets the permissions for the given author of the message.
+:param message: The message to get permissions of.
+:type message: discord.Message
+
+:rtype: int
+:return: The permissions of the given message author.
+"""
         logger.debug(f"Getting permissions for {message.author.id}")
         # Bot owner (me!)
         if message.author.id == 523717630972919809 or message.author.id == 223085013258731521:
@@ -163,7 +193,15 @@ class Listener(object):
         return 1
 
     def check_perms(self, message, cmd):
-        """Check for command availability based on permissions of the author."""
+        """Check for command availability based on permissions of the author.
+:param message: The message to get permissions from
+:type message: discord.Message
+:param cmd: The command dictionary
+:type cmd: dict
+
+:rtype: int
+:return: 2 if bypass cooldown, 1 if success, 0 if fail
+"""
         logger.debug(f"Checking permissions for {message.author.id} for command {cmd}")
         p = self.get_perms(message)
 
@@ -175,7 +213,7 @@ class Listener(object):
 
     # Background Tasks
 
-    async def garbage_collect(self):
+    async def garbage_collect_core(self):
         """A garbage collection loop that times out certain elements."""
         self.status = 1
         logger.info(f"Garbage collection loop initiated")
@@ -185,7 +223,7 @@ class Listener(object):
             self.status = 2
             logger.info(f"Garbage collecting...")
 
-            # Scrollables collection
+            # Scrollable collection
             for i in range(len(self.scroll) - 1, -1, -1):
                 msg, user, s, timestamp = self.scroll[i]
                 if time.time() - timestamp > 120:
@@ -232,10 +270,19 @@ class Listener(object):
             await msg.edit(embed=embed, suppress=True)
         return
 
+    async def garbage_collect(self):
+        """Wrapper for the garbage_collect_core method that catches exceptions."""
+        try:
+            await self.garbage_collect_core()
+        except Exception as e:
+            await self.owner.send(f"Garbage collect loop has exited. Error: {e}")
+            self.status = 1
+
     # Bot Events Processing
 
     async def on_ready(self):
-        logger.info(f"Bot ready, initiating loops.")
+        """Initialization step that called when the Discord client connects to Discord."""
+        logger.info(f"Bot ready, completing initialization.")
         if self.status == 0:
             self.garbo = asyncio.create_task(self.garbage_collect())
             self.owner = await self.client.fetch_user(523717630972919809)
@@ -246,6 +293,13 @@ class Listener(object):
     #            await glb_channel.send("at!echo at!loopglb start Atlantica 1h (Weight Leaderboard autostart)")
 
     async def on_message(self, message):
+        """Processing of a message as a command.
+:param message: the message to process
+:type message: discord.Message
+
+:rtype: None
+:return: None
+"""
 
         logger.debug(f"Received message {message.content} in {message.channel} in {message.guild}.")
 
@@ -383,6 +437,15 @@ class Listener(object):
         return
 
     async def on_reaction(self, reaction, user):
+        """Processing of reactions
+:param reaction: the reaction to process
+:type reaction: discord.Reaction
+:param user: the user that reacted
+:type user: discord.User
+
+:rtype: None
+:return: None
+"""
         # Handling reactions by checking if it is looking for one.
         if user.bot:
             return
@@ -403,7 +466,15 @@ class Listener(object):
             self.status = 1
 
     async def proc_reaction(self, reaction, user):
-        """Process each reaction to see if they should trigger anything"""
+        """Process each reaction to see if they should trigger anything
+:param reaction: the reaction to process
+:type reaction: discord.Reaction
+:param user: the user that reacted
+:type user: discord.User
+
+:rtype: None
+:return: None
+"""
         logger.debug("Received reaction {reaction.emoji} to message {reaction.message.id} by user {user}.")
 
         # Conditions
@@ -494,11 +565,16 @@ Please contact a staff member for help.")
     # Commands
 
     async def stop(self, message):
-        """Stops the bot"""
+        """Stops the bot
+:param message: The message that issued the command
+:type message: discord.Message
+
+:rtype: None
+:return: None"""
         logger.warning("{message.author} is running the shutdown command.")
         if message.author.id in (523717630972919809, 223085013258731521):
             if self.stopcounter == 0:
-                self.stopcounter += 1
+                self.stopcounter = 1
                 await message.channel.send("Are you sure you want to stop the bot?\n\
 - Run the command again to confirm.\n\
 - Run `at!nevermind` (change prefix accordingly) to reset the counter.")
@@ -510,13 +586,24 @@ Please contact a staff member for help.")
             self.client.loop.stop()
             sys.exit()
 
-    async def nevermind(self, message: discord.Message) -> None:
-        """Resets the stop counter"""
+    async def nevermind(self, message):
+        """Resets the stop counter
+:param message: The message that issued the command
+:type message: discord.Message
+
+:rtype: None
+:return: None"""
         if message.author.id in (523717630972919809, 223085013258731521):
             self.stopcounter = 0
             await message.channel.send("Stop counter reset.")
 
     async def CMD_eval(self, message: discord.Message) -> None:
+        """Evaluates a statement using eval (bot owner only)
+:param message: The message that issued the command
+:type message: discord.Message
+
+:rtype: None
+:return: None"""
         logger.warning("{message.author} is trying to evaluate something.")
         if message.author.id != 523717630972919809:
             await message.channel.send("You don't have permission to do this!")
@@ -525,7 +612,13 @@ Please contact a staff member for help.")
         await message.channel.send(eval(thing_to_do))
         return
 
-    async def CMD_exec(self, message: discord.Message) -> None:
+    async def CMD_exec(self, message):
+        """Executes a statement using exec (bot owner only)
+:param message: The message that issued the command
+:type message: discord.Message
+
+:rtype: None
+:return: None"""
         logger.warning("{message.author} is trying to execute something.")
         if message.author.id == 523717630972919809:
             args = message.content.split(' ')
@@ -537,7 +630,7 @@ Please contact a staff member for help.")
                 await message.channel.send("There is no return value.")
 
     async def temp(self, message):
-        """Temporary testing command"""
+        """Temporary testing command. Bot owner only. Parameters may fluctuate."""
         if message.author.id != 523717630972919809:
             await message.channel.send("This temporary is *temporary* for a reason!")
             return
@@ -556,8 +649,6 @@ Please contact a staff member for help.")
             await message.channel.send(f"This module is for interfacing with Minecraft servers.\n\
 Please specify a subcommand, or use the `{pfx}help minecraft` command to learn more.")
             return
-
-#        await self.mcinterface.proccommand(message, args[1], args[2:])
 
     # Point commands
 
@@ -1144,8 +1235,8 @@ Please check with a server staff on which bot you should use to verify.")
             return
 
         username = args[1]
-        player = Player(self.reqsession, username)
-        await player.parse_general(self.reqsession)
+        player = Player(self.req_session, username)
+        await player.parse_general(self.req_session)
         if player.discord is None:
             await message.channel.send("Please check the pinned messages on how to link your Discord account!",
                                        delete_after=20)

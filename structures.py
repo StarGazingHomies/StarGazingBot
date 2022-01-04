@@ -3,16 +3,53 @@ This module focuses on often-used structures/classes in the discord bot.
 Most base/data modules will be defined here.
 """
 
+import discord
 from discord import Embed, Colour
 
 
 class ReactionResponse:
-    """The most basic response object to a reaction.
+    def __init__(self, message, user):
+        """The most basic response object to a reaction.
+:param message: the message to react to
+:type message: discord.Message
+:param user: the user that triggers the reaction
+:type user: discord.User
+
+:rtype: ReactionResponse
+:return: An object that uses on_reaction to handle reactions.
 """
-    def __init__(self):
-        pass
+        self.message = message
+        self.user = user
 
+    def is_match(self, reaction, user):
+        """Checks whether a reaction should be handled by this object
+:param reaction: the reaction object, provided by discord.on_reaction_add
+:type reaction: discord.Reaction
+:param user: the user provided by discord.on_reaction_add
+:type user: discord.User
 
+:rtype: bool
+:return: Whether the reaction should be handled
+"""
+        if self.message.id != reaction.message.id:
+            return False
+        if self.user.id != user.id:
+            return False
+        return True
+
+    def on_reaction(self, reaction, user):
+        """Handles a reaction by checking if it matches the message and user.
+:param reaction: the reaction object, provided by discord.on_reaction_add
+:type reaction: discord.Reaction
+:param user: the user provided by discord.on_reaction_add
+:type user: discord.User
+
+:rtype: dict
+:return: A dictionary indicating the status and any additional information.
+"""
+        if not self.is_match(reaction, user):
+            return {'status': -1}
+        # Implement anything else here.
 
 
 class PagedResponse(object):
