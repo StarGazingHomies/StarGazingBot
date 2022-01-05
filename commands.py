@@ -39,6 +39,8 @@ logger = logging.getLogger('commands')
 
 
 # TODO: finish docstrings
+# TODO: Slash commands
+# TODO: decorator for commands (may be useless after slash implementation)
 # Handler Object
 # Method that listens to Discord messages, and checks for reactions/follow up msgs.
 class Listener(object):
