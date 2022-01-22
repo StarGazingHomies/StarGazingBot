@@ -16,7 +16,7 @@ MATCHING = yaml.load(open(os.path.join(interactionspath, "matching.yaml")), yaml
 CONTAIN = yaml.load(open(os.path.join(interactionspath, "contain.yaml")), yaml.FullLoader)
 
 
-class MemberWeight(object):
+class MemberWeight:
     def __init__(self):
         self.path = os.path.join(os.getcwd(), 'userdata')
         self.memberpath = os.path.join(self.path, 'members')
@@ -158,13 +158,16 @@ class MemberWeight(object):
         for i, matchresp in enumerate(MATCHING):
             vals, resps = matchresp
             try:
-                if time.time() - self.matchingcd[i] < 1200:
+                if time.time() - self.matchingcd[i] < 7200:
                     continue
             except KeyError:
                 # no prior cooldown.
                 pass
             for val in vals:
                 if message.content.lower() == val:
+                    if message.author.id == 388603970521661440:
+                        await message.channel.send("Shoo <@!388603970521661440>!")
+                        self.containcd[i] = time.time()
                     await message.channel.send(resps[random.randint(0, len(resps) - 1)])
                     self.matchingcd[i] = time.time()
                     break
@@ -172,13 +175,17 @@ class MemberWeight(object):
         for i, containresp in enumerate(CONTAIN):
             vals, resps = containresp
             try:
-                if time.time() - self.containcd[i] < 1200:
+                if time.time() - self.containcd[i] < 7200:
                     continue
             except KeyError:
                 # no prior cooldown.
                 pass
             for val in vals:
                 if message.content.lower().count(val) >= 1:
+                    if message.author.id == 388603970521661440:
+                        await message.channel.send("Shoo <@!388603970521661440>!")
+                        self.containcd[i] = time.time()
+                        break
                     await message.channel.send(resps[random.randint(0, len(resps) - 1)])
                     self.containcd[i] = time.time()
                     break
