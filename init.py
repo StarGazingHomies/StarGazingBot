@@ -1,4 +1,5 @@
 import os
+import yaml
 
 
 def make_dir(folders):
@@ -10,6 +11,7 @@ def make_dir(folders):
 
 
 if __name__ == '__main__':
+    # Directory structure
     make_dir(['cache'])
     make_dir(['command'])
     make_dir(['command', 'commanddoc'])
@@ -22,3 +24,10 @@ if __name__ == '__main__':
     make_dir(['settings', 'settingsdoc'])
     make_dir(['settings', 'settingsinfo'])
     make_dir(['userdata', 'members'])
+
+    # Inputs
+    config = {'token': input("Discord bot token: "),
+              'dmprefix': input("Default bot prefix: "),
+              'api_key': input("Hypixel API key: ")}
+    with open(os.path.join(os.getcwd(), "settings", "config.env"), "w") as cfg_file:
+        yaml.dump(config, cfg_file)

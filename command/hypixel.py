@@ -296,6 +296,7 @@ message: discord.Message object"""
         await channel.send("Task exited")
 
     async def CMD_Skyblock_event(self, message):
+        # TODO: complete Skyblock:event
         # subcommands: list, start, end, restart
         # defaults to list if not specified
         args = message.content.split(' ')

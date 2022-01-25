@@ -1,3 +1,6 @@
 import command.manebooru
 import command.hypixel
-__all__ = ['manebooru', 'hypixel']
+import command.conditional
+import command.mojang
+
+__all__ = ['manebooru', 'hypixel', 'conditional', 'mojang']

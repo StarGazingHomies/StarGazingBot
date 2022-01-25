@@ -17,12 +17,12 @@ import yaml
 import time
 
 from membermanager import UserManager
+from modules.hypixel.player import Player
 from serversettings import GetSettingsManager as SettingsManager
 # These two will be moved to their dedicated modules soontm
 from modules.dnd.roll import calculate as rolldice
-import modules.minecraft.mojangapi as mojangapi
 # Response objects for common reactions
-from structures import PagedResponse, ExpandableResponse, VerifyResponse
+from structures import VerifyResponse
 # This imports all modules designated by the __init__ file in commands folder
 import command
 # Quality of Life Functions
@@ -38,29 +38,37 @@ NAMESPACEMAP = yaml.safe_load(open(os.path.join(cmdinfopath, "namespacealias.yam
 logger = logging.getLogger('commands')
 
 
+# TODO: finish docstrings
+# TODO: Slash commands
+# TODO: decorator for commands (may be useless after slash implementation)
 # Handler Object
 # Method that listens to Discord messages, and checks for reactions/follow up msgs.
 class Listener(object):
     def __init__(self, client):
-        self.version = "Version: 1w6a"                                                      # Version
-        self.client = client                                                                # The bot client
-        self.tracker = None                                                                 # Tracker for points
-        self.reqsession = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20))    # Client for requests
-        self.usermanager = UserManager()                                                    # User manager
-        self.settingsmanager = SettingsManager()                                            # Settings manager
+        """Initializes a Listener object for commands
+:param client: The Discord Bot Client
+:type client: discord.Client
+
+:rtype: Listener
+:return: the constructed listener object
+"""
+        self.version = "Version: 1w7a"  # Version
+        self.client = client  # The bot client
+        self.tracker = None  # Tracker for points
+        self.req_session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20))  # Client for requests
+        self.usermanager = UserManager()  # User manager
+        self.settingsmanager = SettingsManager()  # Settings manager
 
         # Listeners
         self.listeners = {}
         for module in command.__all__:
             self.listeners[module] = eval(f"command.{module}.Listener()")
-        self.maneinterface = command.manebooru.Listener()                                   # Manebooru interface
-#        self.mcinterface = McMessengerInterface()                                          # Minecraft interface
-        self.helppath = os.path.join(os.getcwd(), 'command', 'commanddoc')                  # Documentation path
-        self.scroll = []        # Format: (message, userid, scrollable object, timestamp)
-        self.expand = []        # Format: (message, userid, expandable object, timestamp)
-        self.verifyreact = []   # Format: (message, userid, verify response obj, timestamp)
-        self.cooldown = {}      # Cooldown format: { author.id : {last: timestamp, command:timestamp} }
-        self.glbtasks = {}      # Format: { message.guild.id : {status: (int)status, task: (async task) task } }
+        self.helppath = os.path.join(os.getcwd(), 'command', 'commanddoc')  # Documentation path
+        self.scroll = []  # Format: (message, userid, scrollable object, timestamp)
+        self.expand = []  # Format: (message, userid, expandable object, timestamp)
+        self.verifyreact = []  # Format: (message, userid, verify response obj, timestamp)
+        self.cooldown = {}  # Cooldown format: { author.id : {last: timestamp, command:timestamp} }
+        self.glbtasks = {}  # Format: { message.guild.id : {status: (int)status, task: (async task) task } }
         self.owner = None
         self.garbo = None
         self.stopcounter = 0
@@ -74,47 +82,63 @@ class Listener(object):
         self.status = 0
 
     def __str__(self):
-        return "A Listener class, listening to all messages."
+        return "A Listener class for commands."
 
-#  Methods
+    #  Methods
 
     @staticmethod
-    def get_command_from_submap(command, submap):
-        if command in submap:
-            if 'alias' in submap[command]:
-                alias = submap[command]['alias']
+    def get_command_from_submap(cmd, submap):
+        """Gets the command from a subcommand map
+:param cmd: The command string to match
+:type cmd: str
+:param submap: The subcommand map
+:type submap: dict
+
+:rtype: dict or bool
+:return: The command if found, and False if not.
+"""
+        if cmd in submap:
+            if 'alias' in submap[cmd]:
+                alias = submap[cmd]['alias']
                 return submap[alias]
-            return submap[command]
+            return submap[cmd]
         return False
 
     def get_command(self, message):
+        """Gets the command from a message
+:param message: The message to get a command from
+:type message: discord.Message
+
+:rtype: dict or bool
+:return: The command dict if found, else False
+"""
         if isinstance(message, str):
             # String input can only be from help module
             args = message.split(' ')
-            command = args[0]
+            cmd = args[0]
         else:
             pfx = self.settingsmanager.server_get(message.guild.id, 'prefix')
             args = message.content.split(' ')
-            command = args[0][len(pfx):]
+            cmd = args[0][len(pfx):]
 
         # First, check if the command specifies a namespace.
         # If it does, the namespace is determined.
         # This would not happen with the help message, the only time input is a string.
         # Alias check
         if len(args) >= 2:
-            if command in NAMESPACEMAP:
-                command = NAMESPACEMAP[command]
+            if cmd in NAMESPACEMAP:
+                cmd = NAMESPACEMAP[cmd]
 
-            if command in self.listeners:
-                submap = COMMANDMAP[command]
+            if cmd in self.listeners:
+                submap = COMMANDMAP[cmd]
                 ans = self.get_command_from_submap(args[1], submap)
                 if ans:
-                    return {'namespace':command, **ans}
+                    return {'namespace': cmd, **ans}
                 else:
                     return None
 
         # Then, search the general commands
-        ans = self.get_command_from_submap(command, COMMANDMAP['general'])
+        ans = self.get_command_from_submap(cmd, COMMANDMAP['general'])
         if ans:
             return {'namespace': None, **ans}
 
@@ -123,7 +147,7 @@ class Listener(object):
             settings = self.settingsmanager.server_get(message.guild.id)
             for key in settings['namespaces']:
                 submap = COMMANDMAP[key]
-                ans = self.get_command_from_submap(command, submap)
+                ans = self.get_command_from_submap(cmd, submap)
                 if ans:
                     return {'namespace': key, **ans}
         except AttributeError:
@@ -133,14 +157,20 @@ class Listener(object):
         # Next, search through all commands
         for key in COMMANDMAP:
             submap = COMMANDMAP[key]
-            ans = self.get_command_from_submap(command, submap)
+            ans = self.get_command_from_submap(cmd, submap)
             if ans:
                 return {'namespace': key, **ans}
 
         return None
 
     def get_perms(self, message):
-        """Gets the permissions for the given author of the message."""
+        """Gets the permissions for the given author of the message.
+:param message: The message to get permissions of.
+:type message: discord.Message
+
+:rtype: int
+:return: The permissions of the given message author.
+"""
         logger.debug(f"Getting permissions for {message.author.id}")
         # Bot owner (me!)
         if message.author.id == 523717630972919809 or message.author.id == 223085013258731521:
@@ -164,20 +194,28 @@ class Listener(object):
                 return 2
         return 1
 
-    def check_perms(self, message, command):
-        """Check for command availability based on permissions of the author."""
-        logger.debug(f"Checking permissions for {message.author.id} for command {command}")
+    def check_perms(self, message, cmd):
+        """Check for command availability based on permissions of the author.
+:param message: The message to get permissions from
+:type message: discord.Message
+:param cmd: The command dictionary
+:type cmd: dict
+
+:rtype: int
+:return: 2 if bypass cooldown, 1 if success, 0 if fail
+"""
+        logger.debug(f"Checking permissions for {message.author.id} for command {cmd}")
         p = self.get_perms(message)
 
         if p == 5:
             return 2
-        if p >= command['permission']:
+        if p >= cmd['permission']:
             return 1
         return 0
 
-# Background Tasks
+    # Background Tasks
 
-    async def garbage_collect(self):
+    async def garbage_collect_core(self):
         """A garbage collection loop that times out certain elements."""
         self.status = 1
         logger.info(f"Garbage collection loop initiated")
@@ -187,8 +225,8 @@ class Listener(object):
             self.status = 2
             logger.info(f"Garbage collecting...")
 
-            # Scrollables collection
-            for i in range(len(self.scroll)-1, -1, -1):
+            # Scrollable collection
+            for i in range(len(self.scroll) - 1, -1, -1):
                 msg, user, s, timestamp = self.scroll[i]
                 if time.time() - timestamp > 120:
                     timeoutmsg = s.timeout()
@@ -196,14 +234,14 @@ class Listener(object):
                     await msg.clear_reactions()
                     self.scroll.pop(i)
 
-            for i in range(len(self.expand)-1, -1, -1):
+            for i in range(len(self.expand) - 1, -1, -1):
                 msg, user, s, timestamp = self.expand[i]
                 if time.time() - timestamp > 120:
                     self.expand.pop(i)
                     embed = s.timeout
                     await msg.edit(embed=embed, suppress=True)
 
-            for i in range(len(self.verifyreact)-1, -1, -1):
+            for i in range(len(self.verifyreact) - 1, -1, -1):
                 msg, user, s, timestamp = self.verifyreact[i]
                 if time.time() - timestamp > 120:
                     self.verifyreact.pop(i)
@@ -234,35 +272,52 @@ class Listener(object):
             await msg.edit(embed=embed, suppress=True)
         return
 
-# Bot Events Processing
+    async def garbage_collect(self):
+        """Wrapper for the garbage_collect_core method that catches exceptions."""
+        try:
+            await self.garbage_collect_core()
+        except Exception as e:
+            await self.owner.send(f"Garbage collect loop has exited. Error: {e}")
+            self.status = 1
+
+    # Bot Events Processing
 
     async def on_ready(self):
-        logger.info(f"Bot ready, initiating loops.")
+        """Initialization step that called when the Discord client connects to Discord."""
+        logger.info(f"Bot ready, completing initialization.")
         if self.status == 0:
             self.garbo = asyncio.create_task(self.garbage_collect())
             self.owner = await self.client.fetch_user(523717630972919809)
             await asyncio.sleep(1)
             # Atlantica
-#            glb_channel = await self.client.fetch_channel(888044419251589130)
-#            await glb_channel.send("at!echo at!loopglb start Atlantica 1h (Weight Leaderboard autostart)")
+
+    #            glb_channel = await self.client.fetch_channel(888044419251589130)
+    #            await glb_channel.send("at!echo at!loopglb start Atlantica 1h (Weight Leaderboard autostart)")
 
     async def on_message(self, message):
+        """Processing of a message as a command.
+:param message: the message to process
+:type message: discord.Message
+
+:rtype: None
+:return: None
+"""
 
         logger.debug(f"Received message {message.content} in {message.channel} in {message.guild}.")
+
+        # Commands prefix
+        pfx = self.settingsmanager.server_get(message.guild.id, 'prefix')
+        if message.guild is None:
+            # DM commands
+            pfx = 'star!'
 
         # Pings give prefix
         if message.content.startswith('<@!797930119476936715>'):
             await message.channel.send(f"My prefix is `{'star!' if pfx is None else pfx}`")
             return
 
-        # Commands prefix
-        if message.guild is None:
-            # DM commands
-            pfx = 'star!'
-
         else:
             # Get the prefix
-            pfx = self.settingsmanager.server_get(message.guild.id, 'prefix')
             enabled = self.settingsmanager.server_get(message.guild.id, 'enabled')
             conditionals = self.settingsmanager.server_get(message.guild.id, 'conditional')
 
@@ -298,13 +353,13 @@ class Listener(object):
             return
 
         # Everything that isn't a command is now filtered out.
-        command = self.get_command(message)
+        cmd = self.get_command(message)
 
-        if not command:
+        if not cmd:
             # Command not found
             return
 
-        p = self.check_perms(message, command)
+        p = self.check_perms(message, cmd)
         if p == 0:
             # Not enough permissions
             logger.info("{message.author} does not have enough permission to execute {command}.")
@@ -317,13 +372,13 @@ class Listener(object):
         # Check cooldown
         if p != 2:
             try:
-                cooldown_type = command['cooldown']
-                logger.debug(f"The cooldown type of command {command} has been identified as {cooldown_type}.")
+                cooldown_type = cmd['cooldown']
+                logger.debug(f"The cooldown type of command {cmd} has been identified as {cooldown_type}.")
                 if cooldown_type == 0:
                     time_since_last = time.time() - self.cooldown[message.author.id]['last']
                     if time_since_last < 10 and p <= 1:
                         too_fast = f"""You are sending commands too fast!"
-                        Please wait {round(10-time_since_last,2)} seconds before trying again."""
+                        Please wait {round(10 - time_since_last, 2)} seconds before trying again."""
                         logger.info(f"{message.author} is sending commands too fast.")
                         await message.channel.send(embed=discord.Embed(title="Please chill!",
                                                                        description=too_fast,
@@ -335,9 +390,9 @@ class Listener(object):
                     self.cooldown[message.author.id]['last'] = time.time()
                 else:
                     try:
-                        time_since_last = time.time() - self.cooldown[message.author.id][command['commonname']]
+                        time_since_last = time.time() - self.cooldown[message.author.id][cmd['commonname']]
                         if time_since_last < cooldown_type:
-                            logger.info(f"{message.author} is sending the command {command} too fast.")
+                            logger.info(f"{message.author} is sending the command {cmd} too fast.")
                             too_fast = f"You are sending commands too fast!\n\
                             Please wait {sec_to_time(cooldown_type - time_since_last, short=False)} before retrying"
                             await message.channel.send(embed=discord.Embed(title="Please chill!",
@@ -348,7 +403,7 @@ class Listener(object):
                             return
                     except KeyError:
                         # Setup cooldown for cmd specific
-                        self.cooldown[message.author.id] = {command['commonname']: time.time()}
+                        self.cooldown[message.author.id] = {cmd['commonname']: time.time()}
             except KeyError:
                 # Since bot restart, the author has not sent any commands! So no cooldown, yay!
                 self.cooldown[message.author.id] = {'last': time.time()}
@@ -358,10 +413,10 @@ class Listener(object):
             # Result should return dict containing status
             # 0 = good exec
             # 1 = good exec, do something now
-            if command['namespace'] is None:
-                result = await eval(f"self.{command['exec']}(message)")
+            if cmd['namespace'] is None:
+                result = await eval(f"self.{cmd['exec']}(message)")
             else:
-                result = await eval(f"self.listeners['{command['namespace']}'].{command['exec']}(message)")
+                result = await eval(f"self.listeners['{cmd['namespace']}'].{cmd['exec']}(message)")
 
             if not result:
                 return
@@ -375,7 +430,7 @@ class Listener(object):
 
                     if result['add'] == 'expand':
                         await result['msg'].add_reaction('⬇️')
-                        if not 'author' in result:
+                        if 'author' not in result:
                             result['author'] = message.author.id
                         self.expand.append([result['msg'], result['author'], result['obj'], time.time()])
 
@@ -384,6 +439,15 @@ class Listener(object):
         return
 
     async def on_reaction(self, reaction, user):
+        """Processing of reactions
+:param reaction: the reaction to process
+:type reaction: discord.Reaction
+:param user: the user that reacted
+:type user: discord.User
+
+:rtype: None
+:return: None
+"""
         # Handling reactions by checking if it is looking for one.
         if user.bot:
             return
@@ -395,12 +459,25 @@ class Listener(object):
             await asyncio.sleep(0.2)
 
         self.status = 3
-        await self.proc_reaction(reaction, user)
-        self.status = 1
+        try:
+            await self.proc_reaction(reaction, user)
+        except Exception as e:
+            self.status = 1
+            raise e
+        finally:
+            self.status = 1
 
     async def proc_reaction(self, reaction, user):
-        logger.debug("Recieved reaction {reaction.emoji} to message {reaction.message.id} by user {user}.")
-        """Process each reaction to see if they should trigger anything/"""
+        """Process each reaction to see if they should trigger anything
+:param reaction: the reaction to process
+:type reaction: discord.Reaction
+:param user: the user that reacted
+:type user: discord.User
+
+:rtype: None
+:return: None
+"""
+        logger.debug("Received reaction {reaction.emoji} to message {reaction.message.id} by user {user}.")
 
         # Conditions
         conditionals = self.settingsmanager.server_get(reaction.message.guild.id, 'conditional')
@@ -440,7 +517,7 @@ class Listener(object):
             return
 
         # Expand
-        for i in range(len(self.expand)-1, -1, -1):
+        for i in range(len(self.expand) - 1, -1, -1):
             msg, uid, s, timestamp = self.expand[i]
             if msg.id != reaction.message.id or uid != user.id:
                 continue
@@ -455,34 +532,51 @@ class Listener(object):
             return
 
         # Verify
-        for i in range(len(self.verifyreact)-1, -1, -1):
+        for i in range(len(self.verifyreact) - 1, -1, -1):
             msg, uid, s, timestamp = self.verifyreact[i]
             if msg.id != reaction.message.id or uid != user.id:
                 continue
-            if reaction.emoji != '<a:animated_check:717397008922443846>':
+            if reaction.emoji != '<a:check:927622044709969981> ':
                 await reaction.message.edit(embed=s.success)
-                verifiedrole = self.settingsmanager.server_get(reaction.message.guild.id, 'verifiedrole')
-                roleobj = discord.Object(verifiedrole)
-                await user.add_roles(roleobj)
+                verified_role = self.settingsmanager.server_get(reaction.message.guild.id, 'verifiedrole')
+                role_obj = discord.Object(verified_role)
+
+                # Give role
                 try:
-                    await reaction.message.delete()
-                except discord.NotFound:
+                    await user.add_roles(role_obj)
+                except discord.errors.Forbidden:
+                    await reaction.message.channel.send("The bot does not have permissions to verify you!\n\
+Please contact a staff member for help.")
+
+                # Change nick
+                try:
+                    await user.edit(nick=s.nick_change)
+                except discord.errors.Forbidden:
+                    # Changing nick is not necessary.
                     pass
+
+                await reaction.message.delete(delay=0.1)
                 self.verifyreact.pop(i)
             else:
                 await reaction.message.edit(embed=s.fail)
                 self.verifyreact.pop(i)
+                await reaction.message.delete(delay=30)
             return
         return
 
-# Commands
+    # Commands
 
     async def stop(self, message):
-        """Stops the bot"""
+        """Stops the bot
+:param message: The message that issued the command
+:type message: discord.Message
+
+:rtype: None
+:return: None"""
         logger.warning("{message.author} is running the shutdown command.")
         if message.author.id in (523717630972919809, 223085013258731521):
             if self.stopcounter == 0:
-                self.stopcounter += 1
+                self.stopcounter = 1
                 await message.channel.send("Are you sure you want to stop the bot?\n\
 - Run the command again to confirm.\n\
 - Run `at!nevermind` (change prefix accordingly) to reset the counter.")
@@ -495,25 +589,42 @@ class Listener(object):
             sys.exit()
 
     async def nevermind(self, message):
-        """Resets the stop counter"""
+        """Resets the stop counter
+:param message: The message that issued the command
+:type message: discord.Message
+
+:rtype: None
+:return: None"""
         if message.author.id in (523717630972919809, 223085013258731521):
             self.stopcounter = 0
             await message.channel.send("Stop counter reset.")
 
     async def CMD_eval(self, message: discord.Message) -> None:
+        """Evaluates a statement using eval (bot owner only)
+:param message: The message that issued the command
+:type message: discord.Message
+
+:rtype: None
+:return: None"""
         logger.warning("{message.author} is trying to evaluate something.")
         if message.author.id != 523717630972919809:
             await message.channel.send("You don't have permission to do this!")
             return
-        thingtodo = message.content[len(message.content.split(' ')[0])+1:]
-        await message.channel.send(eval(thingtodo))
+        thing_to_do = message.content[len(message.content.split(' ')[0]) + 1:]
+        await message.channel.send(eval(thing_to_do))
         return
 
-    async def CMD_exec(self, message: discord.Message) -> None:
+    async def CMD_exec(self, message):
+        """Executes a statement using exec (bot owner only)
+:param message: The message that issued the command
+:type message: discord.Message
+
+:rtype: None
+:return: None"""
         logger.warning("{message.author} is trying to execute something.")
         if message.author.id == 523717630972919809:
             args = message.content.split(' ')
-            stmt = message.content[len(args[0])+1:]
+            stmt = message.content[len(args[0]) + 1:]
             await message.channel.send(f"Executing statement {stmt}")
             try:
                 await message.channel.send(exec(stmt))
@@ -521,25 +632,10 @@ class Listener(object):
                 await message.channel.send("There is no return value.")
 
     async def temp(self, message):
-        """Temporary testing command"""
+        """Temporary testing command. Bot owner only. Parameters may fluctuate."""
         if message.author.id != 523717630972919809:
             await message.channel.send("This temporary is *temporary* for a reason!")
             return
-        return
-#        t0 = time.perf_counter()
-#        print(message.content[len(message.content.split(' ')[0])+1:])
-#        errors = self.your_youre_check.check(message.content[len(message.content.split(' ')[0])+1:])
-#        await message.channel.send(errors)
-#        t1 = time.perf_counter()
-#        await message.channel.send(f'Time taken: {t1-t0}')
-        return
-
-        pages = ['1', '2', '3', '4']
-        p = PagedResponse("Test", pages)
-        msg = await message.channel.send(embed=p.embed)
-        for r in ('⏪', '◀', '▶', '⏩'):
-            await msg.add_reaction(r)
-        self.scroll.append([msg, message.author.id, p, time.time()])
         return
 
     # Minecraft Server Connection
@@ -555,8 +651,6 @@ class Listener(object):
             await message.channel.send(f"This module is for interfacing with Minecraft servers.\n\
 Please specify a subcommand, or use the `{pfx}help minecraft` command to learn more.")
             return
-
-        await self.mcinterface.proccommand(message, args[1], args[2:])
 
     # Point commands
 
@@ -583,7 +677,7 @@ Please specify a subcommand, or use the `{pfx}help minecraft` command to learn m
                     user = self.client.get_user(userid)
                     if not user:
                         user = self.client.fetch_user(userid)
-                    desc += f"{i+1}: {user.name}{(32-len(user.name))*' '}- {points}\n"
+                    desc += f"{i + 1}: {user.name}{(32 - len(user.name)) * ' '}- {points}\n"
                 desc += '```'
                 embed = discord.Embed(title="Points Leaderboard", description=desc)
                 await message.channel.send(embed=embed)
@@ -631,7 +725,6 @@ Points are removed when
                 except Exception as e:
                     await message.channel.send(f"Something went wrong!\n{e}")
                     return
-                
 
         # Get points and apply penalty of random points between 69 and 100
         # Bot owner, for testing, has no penalty!
@@ -650,7 +743,7 @@ Points are removed when
             embed = discord.Embed(title=f"{username}'s points",
                                   colour=discord.Colour.green(),
                                   description=f"""Current points: {points}
-Cooldown reduction: {round(15*(math.log(points,10)-2.5),2)}%
+Cooldown reduction: {round(15 * (math.log(points, 10) - 2.5), 2)}%
 \\*This is a privilege. It is subject to change, and may be disabled at bot owner's discretion.""")
 
         if perms != 5:
@@ -681,7 +774,7 @@ Made by StarGazingHomies#0001, hosted by CVFhyum#0001.
             embed.set_footer(text=f"Running version {version}.")
             await message.channel.send(embed=embed)
         elif args[1] == 'set' and message.author.id == 523717630972919809:
-            restofmsg = message.content[len(args[0])+5:]
+            restofmsg = message.content[len(args[0]) + 5:]
             with open(os.path.join(os.getcwd(), 'TODO.txt'), 'w') as fout:
                 fout.write(restofmsg)
             await message.channel.send(f"Status changed to:\n```{restofmsg}\n```")
@@ -693,7 +786,7 @@ Made by StarGazingHomies#0001, hosted by CVFhyum#0001.
 
     async def CMD_latency(self, message):
         latency = self.client.latency
-        await message.channel.send(f"Discord WebSocket protocol latency: {round(latency*1000,2)}ms")
+        await message.channel.send(f"Discord WebSocket protocol latency: {round(latency * 1000, 2)}ms")
 
     async def CMD_help(self, message):
         footer = self.version
@@ -704,29 +797,29 @@ Made by StarGazingHomies#0001, hosted by CVFhyum#0001.
                 prefix = 'star!'
             else:
                 prefix = self.settingsmanager.server_get(message.guild.id, 'prefix')
-        
+
             try:
                 # Get the command
-                command = self.get_command(message.content[len(message.content.split(' ')[0])+1:])
-                if command is None:
+                cmd = self.get_command(message.content[len(message.content.split(' ')[0]) + 1:])
+                if cmd is None:
                     await message.channel.send("That command does not exist!")
                     return
                 # Special help message for asking for help using help xD
-                if command['commonname'] == "help":
+                if cmd['commonname'] == "help":
                     await message.channel.send("I wonder what the help command does... wait a minute")
                     return
 
                 # Read the help file
-                if command['namespace'] is None:
-                    with open(os.path.join(self.helppath, f'{command["commonname"]}.txt'), 'r') as fin:
+                if cmd['namespace'] is None:
+                    with open(os.path.join(self.helppath, f'{cmd["commonname"]}.txt'), 'r') as fin:
                         helpmsg = fin.read()
                 else:
-                    path = os.path.join(self.helppath, command['namespace'], f'{command["commonname"]}.txt')
+                    path = os.path.join(self.helppath, cmd['namespace'], f'{cmd["commonname"]}.txt')
                     with open(path, 'r') as fin:
                         helpmsg = fin.read()
 
                 # Construct and send message
-                embed = discord.Embed(title=f"Info about {command['commonname']}",
+                embed = discord.Embed(title=f"Info about {cmd['commonname']}",
                                       description=helpmsg.format(prefix=prefix),
                                       colour=discord.Colour.blue())
                 embed.set_footer(text=footer)
@@ -738,7 +831,7 @@ Made by StarGazingHomies#0001, hosted by CVFhyum#0001.
                 embed.set_footer(text="If the issue persists, please report it.")
                 await message.channel.send(embed=embed)
 
-            return  
+            return
         else:
             # Sorting based on category, only add if permissions allow
             perms = self.get_perms(message)
@@ -750,8 +843,8 @@ Made by StarGazingHomies#0001, hosted by CVFhyum#0001.
                 prefix = self.settingsmanager.server_get(message.guild.id, 'prefix')
 
             categories = {}
-            for command, ctgy in CATEGORYMAP.items():
-                cmdinfo = self.get_command(command)
+            for cmd, ctgy in CATEGORYMAP.items():
+                cmdinfo = self.get_command(cmd)
                 if cmdinfo is None:
                     continue
                 perm = cmdinfo['permission']
@@ -760,12 +853,13 @@ Made by StarGazingHomies#0001, hosted by CVFhyum#0001.
                 if ctgy == 'WIP' and perms < 5:
                     continue
                 try:
-                    categories[ctgy].append(command)
+                    categories[ctgy].append(cmd)
                 except KeyError:
-                    categories[ctgy] = [command]
+                    categories[ctgy] = [cmd]
             # Embed construction
             title = "Commands List "
-            desc = f"For more information about a command, use ``{prefix}help <command>``\nFor example: ``{prefix}help apply``"
+            desc = f"For more information about a command, use ``{prefix}help <command>``\n\
+For example: ``{prefix}help apply``"
             embed = discord.Embed(title=title, description=desc, colour=discord.Colour.blue())
             for ctgy, cmdlist in categories.items():
                 fielddesc = ''
@@ -779,25 +873,26 @@ Made by StarGazingHomies#0001, hosted by CVFhyum#0001.
             embed2 = discord.Embed(title="This is not a mental health bot!", colour=discord.Colour.red(),
                                    description=mentalhealth)
             await message.channel.send(embed=embed2)
+
     # Fun
 
     async def CMD_roll(self, message):
         try:
-            result, rolls = rolldice(message.content[len(message.content.split(' ')[0])+1:])
+            result, rolls = rolldice(message.content[len(message.content.split(' ')[0]) + 1:])
             messagecontent = f"Result: {result}\n"
             for dice, allr, total in rolls:
                 formattedrolllist = ''
                 for individualr in allr:
                     formattedrolllist += f'{individualr}+'
-                messagecontent += f"{dice}{(10-len(str(dice)))*' '}- {total} = {formattedrolllist[:-1]}\n"
+                messagecontent += f"{dice}{(10 - len(str(dice))) * ' '}- {total} = {formattedrolllist[:-1]}\n"
             await message.channel.send(messagecontent)
         except Exception as e:
-            await message.channel.send(f"An exception occured: {type(e).__name__}.\nCheck if you entered everything correctly!")
+            await message.channel.send(
+                f"An exception occured: {type(e).__name__}.\nCheck if you entered everything correctly!")
 
     # Settings
-
     async def CMD_user_settings(self, message):
-        # User Settings
+        # TODO: complete user settings
         args = message.content.split(' ')
         if len(args) >= 3:
             # Specific setting
@@ -854,7 +949,8 @@ Made by StarGazingHomies#0001, hosted by CVFhyum#0001.
             elif result == -4:
                 await message.channel.send(f"To edit conditionals, please use the `{prefix}conditional` command!")
             elif result == -5:
-                await message.channel.send(f"To disable commands, please use the `{prefix}enable` and `{prefix}disable` commands!")
+                await message.channel.send(
+                    f"To disable commands, please use the `{prefix}enable` and `{prefix}disable` commands!")
             else:
                 await message.channel.send(f"The setting {setting} is changed to {value}.")
 
@@ -876,92 +972,88 @@ Made by StarGazingHomies#0001, hosted by CVFhyum#0001.
         elif len(args) == 1:
             # Generate pages when there are more settings. Right now, it isn't necessary.
             settings = self.settingsmanager.server_get(message.guild.id)
-            embed = discord.Embed(title="Server settings",colour=discord.Colour.purple())
+            embed = discord.Embed(title="Server settings", colour=discord.Colour.purple())
             for setting, val in settings.items():
-                if setting in ('id', ):
+                if setting in ('id',):
                     continue
                 embed.add_field(name=setting, value=str(val), inline=False)
             await message.channel.send(embed=embed)
 
     async def CMD_prefix(self, message):
         # Alias to {prefix}settings prefix <prefix>
-        pfx = message.content[len(message.content.split(' ')[0])+1:]    # Stuff after first space
+        pfx = message.content[len(message.content.split(' ')[0]) + 1:]  # Stuff after first space
         if ' ' in pfx:
             await message.channel.send("Spaces can't be in the prefix!")
             return
         for char in pfx:
             if ord(char) >= 128:
-                await message.channel.send("Only characters, numbers, and common punctuation are available as prefixes.")
+                await message.channel.send(
+                    "Only characters, numbers, and common punctuation are available as prefixes.")
                 return
         self.settingsmanager.server_edit(message.guild.id, 'prefix', pfx)
         await message.channel.send("Prefix changed.")
-
-    async def CMD_conditional(self, message):
-        #Guided.
-
-        #Current types:
-        #reaction {message:msg, reaction:rctn}
-        #message {channel:chnl, message:msg}
-        pass
 
     async def CMD_perms(self, message):
         perms = self.get_perms(message)
         if perms == 5:
             await message.channel.send("You are a **Bot Owner** and have access to all commands.")
         elif perms == 4:
-            await message.channel.send("You are a **Bot Tester** and have access to normal commands and in-development commands.")
+            await message.channel.send(
+                "You are a **Bot Tester** and have access to normal commands and in-development commands.")
         elif perms == 3:
-            await message.channel.send("You are a **Server Owner** and have access to most commands. (`at!settings server` but not `at!stop`)")
+            await message.channel.send(
+                "You are a **Server Owner** and have access to most commands. (`at!settings server` but not `at!stop`)")
         elif perms == 2:
-            await message.channel.send("You are a **Server Staff** and have access to most commands. (`at!move` but not `at!settings`)")
+            await message.channel.send(
+                "You are a **Server Staff** and have access to most commands. (`at!move` but not `at!settings`)")
         elif perms == 1:
             await message.channel.send("You are a **Member** and have access to non-moderation commands.")
         else:
-            msg = await message.channel.send("Something went wrong while getting your permissions. Here, have a cookie! 🍪")
+            msg = await message.channel.send(
+                "Something went wrong while getting your permissions. Here, have a cookie! 🍪")
             await msg.add_reaction("🍪")
 
     async def CMD_say(self, message):
-        #Permission - staff
+        # Permission - staff
         if len(message.content) - len(message.content.split(' ')[0]) - 1 <= 0:
             await message.channel.send("Please tell me something to say!")
             return
-        embed = discord.Embed(description=message.content[len(message.content.split(' ')[0])+1:], colour = discord.Colour.random())
+        embed = discord.Embed(description=message.content[len(message.content.split(' ')[0]) + 1:],
+                              colour=discord.Colour.random())
         await message.channel.send(embed=embed)
         try:
             await message.delete()
         except discord.errors.NotFound:
-            #Message not found - maybe it was already deleted
+            # Message not found - maybe it was already deleted
             pass
 
     async def CMD_echo(self, message):
-        #Permission - staff
+        # Permission - staff
 
-        #Construct fake message
-        
+        # Construct fake message
 
-
-        #Old
-        #-d anywhere in message --> do not delete original message
+        # Old
+        # -d anywhere in message --> do not delete original message
         if len(message.content) - len(message.content.split(' ')[0]) - 1 <= 0:
             await message.channel.send("Please tell me something to say!")
             return
         delete = True
-        msg = message.content[len(message.content.split(' ')[0])+1:]
+        msg = message.content[len(message.content.split(' ')[0]) + 1:]
         if "-d" in message.content:
             delete = False
-            msg = msg.replace('-d','')
+            msg = msg.replace('-d', '')
         await message.channel.send(msg)
 
         if delete:
             try:
                 await message.delete()
             except discord.errors.NotFound:
-                #Message not found - maybe it was already deleted
+                # Message not found - maybe it was already deleted
                 pass
 
     async def CMD_report(self, message):
-        #Still not done, but it will do for now
-        reportcontent = message.content[len(message.content.split(' ')[0])+1:]+'\n'
+        # Still not done, but it will do for now
+        reportcontent = message.content[len(message.content.split(' ')[0]) + 1:] + '\n'
         if reportcontent == '\n':
             await message.channel.send("Please specify what to report!")
             return
@@ -976,12 +1068,14 @@ Made by StarGazingHomies#0001, hosted by CVFhyum#0001.
 **[Content]**
 {reportcontent}""")
         await self.owner.send(embed=embed)
-        await message.channel.send("Thanks for reporting!\nNote: to help improve the bot, your most recent interactions with the bot are recorded.")
+        await message.channel.send(
+            "Thanks for reporting!\n\
+Note: to help improve the bot, your most recent interactions with the bot are recorded.")
         return
 
     async def CMD_pingowner(self, message):
-        #Mainly a test command for command-specific cooldowns!
-        #Owner can request multiple pings
+        # Mainly a test command for command-specific cooldowns!
+        # Owner can request multiple pings
         if message.author.id == 523717630972919809:
             args = message.content.split(' ')
             if len(args) >= 2:
@@ -1020,15 +1114,15 @@ Nicks a certain user with the provided nickname.
                 else:
                     user = int(user)
                 member = await message.guild.fetch_member(user)
-                if nick=='reset':
+                if nick == 'reset':
                     nick = member.name
                 await member.edit(nick=nick)
             except IndexError:
-                if nick=='reset':
+                if nick == 'reset':
                     nick = message.author.name
                 await message.author.edit(nick=nick)
             await message.channel.send("Nickname changed.")
-        except discord.errors.Forbidden:   
+        except discord.errors.Forbidden:
             await message.channel.send("Insufficient permissions.")
 
     async def CMD_move(self, message):
@@ -1050,7 +1144,7 @@ Moves a certain user.
         except discord.errors.NotFound:
             await message.channel.send("Unknown member.")
             return
-        
+
         try:
             channelid = args[1]
             if channelid.startswith('<#'):
@@ -1058,7 +1152,7 @@ Moves a certain user.
             else:
                 channelid = int(channelid)
             channel = message.guild.get_channel(channelid)
-            if channel == None:
+            if channel is None:
                 channels = await message.guild.fetch_channels()
                 for tc in channels:
                     if tc.id == channelid:
@@ -1069,14 +1163,14 @@ Moves a certain user.
 
         try:
             await member.move_to(channel, reason="Bot owner command")
-        except discord.errors.Forbidden:   
+        except discord.errors.Forbidden:
             await message.channel.send("Insufficient permissions.")
 
     async def CMD_clean(self, message):
         """Cleans up messages in a channel"""
         args = message.content.split(' ')[1:]
 
-        #Amount of messages
+        # Amount of messages
         try:
             amount = int(args[0])
         except ValueError:
@@ -1086,7 +1180,7 @@ Moves a certain user.
             await message.channel.send("Please specify how many messages to delete.")
             return
 
-        #User specific
+        # User specific
         try:
             if args[1].startswith('<@!'):
                 userid = int(args[1][3:-1])
@@ -1118,7 +1212,7 @@ Moves a certain user.
             await message.channel.send("Purging failed due to a network issue. Perhaps try again later?")
             return
 
-        #Send and delete the confirmation that messages are gone
+        # Send and delete the confirmation that messages are gone
         msg = await message.channel.send(f"Cleaned up {len(actualamount)} messages.")
         await asyncio.sleep(5)
         try:
@@ -1126,16 +1220,15 @@ Moves a certain user.
         except discord.errors.NotFound:
             pass
 
-    #--------------------------------------------------------------------    User-Staff interactions... i think?    --------------------------------------------------------------------
+    # User-Staff interactions... i think?
 
     async def CMD_verify(self, message):
-        try:
-            await message.delete()
-        except Exception:
-            pass
+        await message.delete(delay=0.1)
         settings = self.settingsmanager.server_get(message.guild.id)
         if not settings['verify']:
-            await message.channel.send("Verification is not enabled on this server. Please check with a server staff on which bot you should use to verify.")
+            await message.channel.send(
+                "Verification is not enabled on this server.\n\
+Please check with a server staff on which bot you should use to verify.")
             return
 
         args = message.content.split(' ')
@@ -1144,86 +1237,94 @@ Moves a certain user.
             return
 
         username = args[1]
-        player = Player(self.reqsession, username)
-        result = await player.parse_general(self.reqsession)
+        player = Player(self.req_session, username)
+        await player.parse_general(self.req_session)
         if player.discord is None:
-            await message.channel.send("Please check the pinned messages on how to link your Discord account!", delete_after=20)
+            await message.channel.send("Please check the pinned messages on how to link your Discord account!",
+                                       delete_after=20)
             return
         if player.discord != f'{message.author.name}#{message.author.discriminator}':
-            await message.channel.send(f"Your linked discord on Hypixel `{player.discord}` does not match your discord `{message.author.name}#{message.author.discriminator}`.", delete_after=20)
-            await message.channel.send("Please check the pinned messages on how to link your Discord account!", delete_after=20)
+            await message.channel.send(
+                f"Your linked discord on Hypixel `{player.discord}` does not match your discord\
+`{message.author.name}#{message.author.discriminator}`.",
+                delete_after=20)
+            await message.channel.send("Please check the pinned messages on how to link your Discord account!",
+                                       delete_after=20)
             return
 
-        verifyobj = VerifyResponse(message)
-        rmsg = await message.channel.send(embed=verifyobj.wait)
-        await rmsg.add_reaction('<a:animated_check:717397008922443846>')
+        verify_obj = VerifyResponse(message, username)
+        rmsg = await message.channel.send(embed=verify_obj.wait)
+        await rmsg.add_reaction('<a:check:927622044709969981>')
 
-        #Response proc
-        self.verifyreact.append([rmsg, message.author.id, verifyobj, time.time()])
+        # Response proc
+        self.verifyreact.append([rmsg, message.author.id, verify_obj, time.time()])
         return
 
     async def CMD_apply(self, message):
 
-        #Check if apply is enabled
+        # Check if apply is enabled
         settings = self.settingsmanager.server_get(message.guild.id)
-        if settings['apply'] == False:
-            await message.channel.send("Applications aren't enabled in this server! Perhaps you should use another bot?")
+        if not settings['apply']:
+            await message.channel.send(
+                "Applications aren't enabled in this server! Perhaps you should use another bot?")
+            return
 
         try:
-            ctgy = settings['applycategory']
-            if isinstance(ctgy, int):
-                ctgy = message.guild.get_channel(ctgy)
-                if ctgy == None:
-                    ctgy = message.guild.fetch_channel(ctgy)
+            apply_category = settings['applycategory']
+            if isinstance(apply_category, int):
+                apply_category = message.guild.get_channel(apply_category)
+                if apply_category is None:
+                    apply_category = message.guild.fetch_channel(apply_category)
         except KeyError:
-            #Settings broken?
-            ctgy = None
+            # Settings broken?
+            apply_category = None
 
-        #Channel construction
-        Overwrites = {
+        # Channel construction
+        overwrites = {
             message.guild.default_role:
-            discord.PermissionOverwrite(read_messages=False),
+                discord.PermissionOverwrite(read_messages=False),
             message.author:
-            discord.PermissionOverwrite(
-                send_messages=True,
-                view_channel=True,
-                read_messages=True,
-                add_reactions=True),
+                discord.PermissionOverwrite(
+                    send_messages=True,
+                    view_channel=True,
+                    read_messages=True,
+                    add_reactions=True),
             message.guild.get_role(settings['staffrole']):
-            discord.PermissionOverwrite(
-                send_messages=True,
-                view_channel=True,
-                read_messages=True,
-                add_reactions=True)      
+                discord.PermissionOverwrite(
+                    send_messages=True,
+                    view_channel=True,
+                    read_messages=True,
+                    add_reactions=True)
         }
-        if ctgy:
-            channel = await message.guild.create_text_channel(name=f'@{message.author.name} application', overwrites=Overwrites, category=ctgy)
+        if apply_category:
+            channel = await message.guild.create_text_channel(name=f'@{message.author.name} application',
+                                                              overwrites=overwrites, category=apply_category)
         else:
-            channel = await message.guild.create_text_channel(name=f'@{message.author.name} application', overwrites=Overwrites)
+            channel = await message.guild.create_text_channel(name=f'@{message.author.name} application',
+                                                              overwrites=overwrites)
 
-        #Return message
+        # Return message
         embed = discord.Embed(
             title=f"**Alright {message.author.name}, your application is set up**",
-            description=
-            f'Your application channel is here: <#{channel.id}>',
+            description=f'Your application channel is here: <#{channel.id}>',
             colour=discord.Colour.blue())
-        embed2 = discord.Embed(title = f"{message.author.name}'s application",
-                               description = """Guild Application
+        embed2 = discord.Embed(title=f"{message.author.name}'s application",
+                               description="""Guild Application
 You’re all set! Please wait patiently for a staff member to respond.
 If you want to add any extra information, you can provide it here.""",
-                               colour = discord.Colour.green())
-        message2 = await message.channel.send(embed=embed, delete_after=10)
-        message3 = await channel.send(f"<@&{settings['staffrole']}>", delete_after=1)
+                               colour=discord.Colour.green())
+        await message.channel.send(embed=embed, delete_after=10)
+        await channel.send(f"<@&{settings['staffrole']}>", delete_after=1)
 
-        #Application set up, in-channel message
+        # Application set up, in-channel message
         await channel.send(embed=embed2)
 
-        #Displays weight of user
+        # Displays weight of user
         try:
-            identifier = message.author.nick.split('|')[-1].replace(' ','')
+            identifier = message.author.nick.split('|')[-1].replace(' ', '')
         except AttributeError:
             identifier = message.author.name
-        await self.Skyblock_weightdisp(message.author, channel, identifier)
+        await self.listeners['hypixel'].Skyblock_weightdisp(message.author, channel, identifier)
 
     async def CMD_suggest(self, message):
         # Not done!
@@ -1235,86 +1336,48 @@ If you want to add any extra information, you can provide it here.""",
             await message.channel.send("Suggestions aren't enabled in this server! Perhaps you should use another bot?")
 
         try:
-            ctgy = settings['suggestcategory']
-            if isinstance(ctgy, int):
-                ctgy = message.guild.get_channel(ctgy)
-                if ctgy == None:
-                    ctgy = message.guild.fetch_channel(ctgy)
+            suggest_category = settings['suggestcategory']
+            if isinstance(suggest_category, int):
+                suggest_category = message.guild.get_channel(suggest_category)
+                if suggest_category is None:
+                    suggest_category = message.guild.fetch_channel(suggest_category)
         except KeyError:
             # Settings broken?
-            ctgy = None
+            suggest_category = None
 
         # Overwrites only work in Atlantica.
-        Overwrites = {
+        overwrites = {
             message.guild.default_role:
-            discord.PermissionOverwrite(read_messages=False),
+                discord.PermissionOverwrite(read_messages=False),
             message.author:
-            discord.PermissionOverwrite(
-                send_messages=True,
-                view_channel=True,
-                read_messages=True,
-                add_reactions=True),
+                discord.PermissionOverwrite(
+                    send_messages=True,
+                    view_channel=True,
+                    read_messages=True,
+                    add_reactions=True),
             message.guild.get_role(settings['staffrole']):
-            discord.PermissionOverwrite(
-                send_messages=True,
-                view_channel=True,
-                read_messages=True,
-                add_reactions=True)      
+                discord.PermissionOverwrite(
+                    send_messages=True,
+                    view_channel=True,
+                    read_messages=True,
+                    add_reactions=True)
         }
-        if ctgy:
-            channel = await message.guild.create_text_channel(name=f'@{message.author.name} application', overwrites=Overwrites, category=ctgy)
+        if suggest_category:
+            channel = await message.guild.create_text_channel(name=f'@{message.author.name} application',
+                                                              overwrites=overwrites, category=suggest_category)
         else:
-            channel = await message.guild.create_text_channel(name=f'@{message.author.name} application', overwrites=Overwrites)
+            channel = await message.guild.create_text_channel(name=f'@{message.author.name} application',
+                                                              overwrites=overwrites)
         # Return message and channel construction
         embed = discord.Embed(
             title=f"**Please elaborate on your suggestion in the newly created channel!**",
-            description=
-            f'Your suggestion channel is <#{channel.id}>',
+            description=f'Your suggestion channel is <#{channel.id}>',
             colour=discord.Colour.blue())
-        embed2 = discord.Embed(title = f"{message.author.name}'s suggestion",
-                               description = """Please elaborate on your suggestion, and staff members will be provide feedback.""",
-                               colour = discord.Colour.green())
-        message2 = await message.channel.send(embed=embed, delete_after=10)
-        message3 = await channel.send(f"<@&{settings['staffrole']}>", delete_after=1)
+        embed2 = discord.Embed(title=f"{message.author.name}'s suggestion",
+                               description="""Please state your suggestion here.""",
+                               colour=discord.Colour.green())
+        await message.channel.send(embed=embed, delete_after=10)
+        await channel.send(f"<@&{settings['staffrole']}>", delete_after=1)
 
         # Application set up, in-channel message
         await channel.send(embed=embed2)
-
-    # Skyblock functions
-
-    async def CMD_uuid(self, message, limited=3):
-        """Get the uuid of a Minecraft user"""
-        args = message.content.split(' ')
-        if len(args) >= 2:
-            username = args[1]
-        else:
-            await message.channel.send("Please indicate a username to get the uuid of.")
-            return
-        kwargs = {}
-        if len(args) >= 3 and message.author.id == 523717630972919809:
-            for arg in args[2:]:
-                try:
-                    a, b = arg.split('=')
-                    kwargs[a] = b
-                except TypeError:
-                    await message.channel.send(f"Error in keyword argument {arg}.")
-        result = await mojangapi.getuuid(self.reqsession, username, **kwargs)
-        if not result:
-            await message.channel.send("An error occured. Please try again later.")
-        await message.channel.send(f"The uuid of {username} is {result}.")
-        return
-
-    async def CMD_username(self, message, limited=3):
-        """Get the username of a Minecraft user."""
-        args = message.content.split(' ')
-        if len(args) >= 2:
-            uuid = args[1]
-        else:
-            await message.channel.send("Please indicate a uuid to get the username of.")
-            return
-        result = await mojangapi.getusername(self.reqsession, uuid)
-        if not result:
-            await message.channel.send("An error occured. Please try again later.")
-        await message.channel.send(f"The username of {uuid} is {result}.")
-
-        
