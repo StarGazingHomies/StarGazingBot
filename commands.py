@@ -17,12 +17,13 @@ import yaml
 import time
 
 from membermanager import UserManager
+from modules.hypixel.player import Player
 from serversettings import GetSettingsManager as SettingsManager
 # These two will be moved to their dedicated modules soontm
 from modules.dnd.roll import calculate as rolldice
 import modules.minecraft.mojangapi as mojangapi
 # Response objects for common reactions
-from structures import PagedResponse, ExpandableResponse, VerifyResponse
+from structures.response import PagedResponse, ExpandableResponse, VerifyResponse
 # This imports all modules designated by the __init__ file in commands folder
 import command
 # Quality of Life Functions
@@ -56,9 +57,7 @@ class Listener(object):
         self.maneinterface = command.manebooru.Listener()                                   # Manebooru interface
 #        self.mcinterface = McMessengerInterface()                                          # Minecraft interface
         self.helppath = os.path.join(os.getcwd(), 'command', 'commanddoc')                  # Documentation path
-        self.scroll = []        # Format: (message, userid, scrollable object, timestamp)
-        self.expand = []        # Format: (message, userid, expandable object, timestamp)
-        self.verifyreact = []   # Format: (message, userid, verify response obj, timestamp)
+        self.responses = []        # Format: (response object (inherit from structures.response, timestamp)
         self.cooldown = {}      # Cooldown format: { author.id : {last: timestamp, command:timestamp} }
         self.glbtasks = {}      # Format: { message.guild.id : {status: (int)status, task: (async task) task } }
         self.owner = None
@@ -187,28 +186,17 @@ class Listener(object):
             self.status = 2
             logger.info(f"Garbage collecting...")
 
-            # Scrollables collection
-            for i in range(len(self.scroll)-1, -1, -1):
-                msg, user, s, timestamp = self.scroll[i]
+            # Responses objects collection
+            for i in range(len(self.responses)-1, -1, -1):
+                s, timestamp = self.responses[i]
                 if time.time() - timestamp > 120:
-                    timeoutmsg = s.timeout()
-                    await msg.edit(**timeoutmsg, suppress=True)
-                    await msg.clear_reactions()
-                    self.scroll.pop(i)
-
-            for i in range(len(self.expand)-1, -1, -1):
-                msg, user, s, timestamp = self.expand[i]
-                if time.time() - timestamp > 120:
-                    self.expand.pop(i)
-                    embed = s.timeout
-                    await msg.edit(embed=embed, suppress=True)
-
-            for i in range(len(self.verifyreact)-1, -1, -1):
-                msg, user, s, timestamp = self.verifyreact[i]
-                if time.time() - timestamp > 120:
-                    self.verifyreact.pop(i)
-                    embed = s.timeout
-                    await msg.edit(embed=embed, suppress=True)
+                    timeout_msg = s.timeout()
+                    try:
+                        await s.msg.edit(**timeout_msg, suppress=True)
+                        await s.msg.clear_reactions()
+                    except discord.NotFound:
+                        pass
+                    self.responses.pop(i)
 
             # Wait for next cycle | status=1 - normal
             self.status = 1
@@ -219,19 +207,10 @@ class Listener(object):
 
         logger.info("Ending tasks for shutdown")
         # Shut down - replace every embed with timed out
-        for i, pkg in enumerate(self.scroll):
-            msg, user, s, timestamp = pkg
-            embed = discord.Embed(title=s.title, description=s.pages[s.cur])
-            embed.set_footer(text="Timed out.")
-            await msg.edit(embed=embed, suppress=True)
-        for i, pkg in enumerate(self.expand):
-            msg, user, s, timestamp = pkg
-            embed = s.timeout
-            await msg.edit(embed=embed, suppress=True)
-        for i, pkg in enumerate(self.verifyreact):
-            msg, user, s, timestamp = pkg
-            embed = s.timeout
-            await msg.edit(embed=embed, suppress=True)
+        for i, pkg in enumerate(self.responses):
+            s, timestamp = pkg
+            embed = s.timeout()
+            await embed.msg.edit(embed=embed, suppress=True)
         return
 
 # Bot Events Processing
@@ -277,8 +256,8 @@ class Listener(object):
                         await message.channel.send("You don't have permissions to do that!")
                 elif message.content.startswith("star!"):
                     logger.warning("Server {message.guild} is not set up!")
-                    await message.channel.send("This bot is not set up yet!\
-                    Ask an admin to run star!setup to initialize the bot.")
+                    await message.channel.send("This bot is not set up yet!\n\
+Ask an admin to run star!setup to initialize the bot.")
                 return
 
             if (not enabled) and message.content.startswith(pfx):
@@ -367,17 +346,8 @@ class Listener(object):
                 return
             if result['status'] == 1:
                 if 'add' in result:
-                    if result['add'] == 'scroll':
-                        for r in ('⏪', '◀', '▶', '⏩', chr(128256)):
-                            await result['msg'].add_reaction(r)
-                        await result['msg'].edit(**result['obj'].msgget())
-                        self.scroll.append([result['msg'], message.author.id, result['obj'], time.time()])
-
-                    if result['add'] == 'expand':
-                        await result['msg'].add_reaction('⬇️')
-                        if not 'author' in result:
-                            result['author'] = message.author.id
-                        self.expand.append([result['msg'], result['author'], result['obj'], time.time()])
+                    if result['add'] == 'response':
+                        self.responses.append([result['obj'], time.time()])
 
         except Exception as e:
             raise e
@@ -399,7 +369,7 @@ class Listener(object):
         self.status = 1
 
     async def proc_reaction(self, reaction, user):
-        logger.debug("Recieved reaction {reaction.emoji} to message {reaction.message.id} by user {user}.")
+        logger.debug("Received reaction {reaction.emoji} to message {reaction.message.id} by user {user}.")
         """Process each reaction to see if they should trigger anything/"""
 
         # Conditions
@@ -412,66 +382,12 @@ class Listener(object):
                 if match == reaction.message.content and position == reaction.message.channel.id:
                     await result
 
-        # Scroll
-        for i in range(len(self.scroll)):
-            msg, uid, s, timestamp = self.scroll[i]
-            if msg.id != reaction.message.id or uid != user.id:
-                continue
-            if reaction.emoji == '⏪':
-                t = await s.rewind()
-            elif reaction.emoji == '⏩':
-                t = await s.fast_forward()
-            elif reaction.emoji == '◀':
-                t = await s.prev()
-            elif reaction.emoji == '▶':
-                t = await s.next()
-            elif ord(reaction.emoji) == 128256:  # Shuffle, but the emoji is weirdly utf-32
-                try:
-                    t = await s.random()
-                except AttributeError:
-                    continue
-            else:
-                continue
-            self.scroll[i][3] = time.time()
-            if t != -1:
-                # T returns a dictionary, so hey, why not use **?
-                await reaction.message.edit(**t)
-            await reaction.remove(user)
-            return
-
-        # Expand
-        for i in range(len(self.expand)-1, -1, -1):
-            msg, uid, s, timestamp = self.expand[i]
-            if msg.id != reaction.message.id or uid != user.id:
-                continue
-            if reaction.emoji == '⬇️':
-                t = s.long
-            else:
-                continue
-            await reaction.message.edit(embed=t)
-            await reaction.remove(user)
-            await reaction.remove(self.client.user)
-            self.expand.pop(i)
-            return
-
-        # Verify
-        for i in range(len(self.verifyreact)-1, -1, -1):
-            msg, uid, s, timestamp = self.verifyreact[i]
-            if msg.id != reaction.message.id or uid != user.id:
-                continue
-            if reaction.emoji != '<a:animated_check:717397008922443846>':
-                await reaction.message.edit(embed=s.success)
-                verifiedrole = self.settingsmanager.server_get(reaction.message.guild.id, 'verifiedrole')
-                roleobj = discord.Object(verifiedrole)
-                await user.add_roles(roleobj)
-                try:
-                    await reaction.message.delete()
-                except discord.NotFound:
-                    pass
-                self.verifyreact.pop(i)
-            else:
-                await reaction.message.edit(embed=s.fail)
-                self.verifyreact.pop(i)
+        # Responses
+        for i in range(len(self.responses)-1, -1, -1):
+            s, timestamp = self.responses[i]
+            r = await s.proc_reaction(reaction, user)
+            if r == 1:
+                self.responses.pop(i)
             return
         return
 
@@ -539,7 +455,7 @@ class Listener(object):
         msg = await message.channel.send(embed=p.embed)
         for r in ('⏪', '◀', '▶', '⏩'):
             await msg.add_reaction(r)
-        self.scroll.append([msg, message.author.id, p, time.time()])
+        self.responses.append([msg, message.author.id, p, time.time()])
         return
 
     # Minecraft Server Connection
@@ -1118,7 +1034,7 @@ Moves a certain user.
             await message.channel.send("Purging failed due to a network issue. Perhaps try again later?")
             return
 
-        #Send and delete the confirmation that messages are gone
+        # Send and delete the confirmation that messages are gone
         msg = await message.channel.send(f"Cleaned up {len(actualamount)} messages.")
         await asyncio.sleep(5)
         try:
@@ -1145,7 +1061,7 @@ Moves a certain user.
 
         username = args[1]
         player = Player(self.reqsession, username)
-        result = await player.parse_general(self.reqsession)
+        await player.parse_general(self.reqsession)
         if player.discord is None:
             await message.channel.send("Please check the pinned messages on how to link your Discord account!", delete_after=20)
             return
@@ -1154,17 +1070,19 @@ Moves a certain user.
             await message.channel.send("Please check the pinned messages on how to link your Discord account!", delete_after=20)
             return
 
-        verifyobj = VerifyResponse(message)
-        rmsg = await message.channel.send(embed=verifyobj.wait)
-        await rmsg.add_reaction('<a:animated_check:717397008922443846>')
+        rmsg = await message.channel.send(content="Please wait a bit...")
+        role_obj = discord.Object(self.settingsmanager.server_get(message.guild.id, 'verifiedrole'))
+        verify_obj = VerifyResponse(rmsg, message.author, role_obj)
+        await rmsg.edit(**verify_obj.response())
+        await rmsg.add_reaction('<:izzywut:917852579562659841>')
 
-        #Response proc
-        self.verifyreact.append([rmsg, message.author.id, verifyobj, time.time()])
+        # Response proc
+        self.responses.append([verify_obj, time.time()])
         return
 
     async def CMD_apply(self, message):
 
-        #Check if apply is enabled
+        # Check if apply is enabled
         settings = self.settingsmanager.server_get(message.guild.id)
         if settings['apply'] == False:
             await message.channel.send("Applications aren't enabled in this server! Perhaps you should use another bot?")
@@ -1176,10 +1094,10 @@ Moves a certain user.
                 if ctgy == None:
                     ctgy = message.guild.fetch_channel(ctgy)
         except KeyError:
-            #Settings broken?
+            # Settings broken?
             ctgy = None
 
-        #Channel construction
+        # Channel construction
         Overwrites = {
             message.guild.default_role:
             discord.PermissionOverwrite(read_messages=False),
@@ -1215,10 +1133,10 @@ If you want to add any extra information, you can provide it here.""",
         message2 = await message.channel.send(embed=embed, delete_after=10)
         message3 = await channel.send(f"<@&{settings['staffrole']}>", delete_after=1)
 
-        #Application set up, in-channel message
+        # Application set up, in-channel message
         await channel.send(embed=embed2)
 
-        #Displays weight of user
+        # Displays weight of user
         try:
             identifier = message.author.nick.split('|')[-1].replace(' ','')
         except AttributeError:
@@ -1282,7 +1200,7 @@ If you want to add any extra information, you can provide it here.""",
 
     # Skyblock functions
 
-    async def CMD_uuid(self, message, limited=3):
+    async def CMD_uuid(self, message):
         """Get the uuid of a Minecraft user"""
         args = message.content.split(' ')
         if len(args) >= 2:
@@ -1304,7 +1222,7 @@ If you want to add any extra information, you can provide it here.""",
         await message.channel.send(f"The uuid of {username} is {result}.")
         return
 
-    async def CMD_username(self, message, limited=3):
+    async def CMD_username(self, message):
         """Get the username of a Minecraft user."""
         args = message.content.split(' ')
         if len(args) >= 2:
@@ -1316,5 +1234,3 @@ If you want to add any extra information, you can provide it here.""",
         if not result:
             await message.channel.send("An error occured. Please try again later.")
         await message.channel.send(f"The username of {uuid} is {result}.")
-
-        

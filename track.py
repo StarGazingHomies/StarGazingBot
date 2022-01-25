@@ -30,7 +30,15 @@ class MemberWeight(object):
         self.lastmessage = {}
 
         # User points. Simple format - {serverid:userid:points}
-        self.points = yaml.safe_load(open(os.path.join(self.path, 'points.yaml'), 'r'))
+        try:
+            self.points = yaml.safe_load(open(os.path.join(self.path, 'points.yaml'), 'r'))
+        except FileNotFoundError:
+            self.points = {}
+            yaml.dump(self.points, open(os.path.join(self.path, 'points.yaml'), "w"))
+        if self.points is None:
+            self.points = {}
+            yaml.dump(self.points, open(os.path.join(self.path, 'points.yaml'), "w"))
+        print(self.points)
         # Amount of changes in points
         self.ptchanges = 10
         # How many points changes to autosave at

@@ -66,6 +66,11 @@ if __name__ == '__main__':
             if user.bot:  # If reaction was by another bot, ignore
                 return
             mainlogger.info("Reaction %s added by user %s.", str(reaction), str(user))
+            try:
+                unicode_id = chr(reaction)
+                mainlogger.info("Reaction %s has chr %d", str(reaction), unicode_id)
+            except TypeError:
+                pass
             await commands.on_reaction(reaction, user)
 
 

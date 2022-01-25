@@ -7,7 +7,7 @@ import yaml
 
 from modules.hypixel.player import Player
 from modules.hypixel.guild import getguild
-from structures import ExpandableResponse
+from structures.response import ExpandableResponse
 from event import CLS_EventFileHandler as EventManager
 from func import pretty_num, time_to_sec
 
@@ -186,8 +186,9 @@ message: discord.Message object"""
             return {'status': 0}
         else:
             new_message = await channel.send(embed=short_embed)
-            exp_obj = ExpandableResponse(short_embed, embed, timeout_embed)
-        return {'status': 1, 'add': 'expand', 'obj': exp_obj, 'msg': new_message, 'author': author.id}
+            await new_message.add_reaction('⬇️')
+            exp_obj = ExpandableResponse(new_message, author, short_embed, embed, timeout_embed)
+        return {'status': 1, 'add': 'response', 'obj': exp_obj}
 
     # Skyblock GUILD/EVENT functions
 
